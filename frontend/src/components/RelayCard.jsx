@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { Lightbulb, Fan, Wind, Moon, Power, Edit2, Check, X } from 'lucide-react';
+import {
+  Lightbulb, Fan, Wind, Moon, Power, Edit2, Check, X,
+  Tv, Plug, Zap, Flame, Lock, Shield, Music, Droplets, Camera
+} from 'lucide-react';
 import axios from 'axios';
 
 const ICON_MAP = {
@@ -7,10 +10,19 @@ const ICON_MAP = {
   fan: Fan,
   wind: Wind,
   moon: Moon,
-  power: Power
+  power: Power,
+  tv: Tv,
+  plug: Plug,
+  zap: Zap,
+  flame: Flame,
+  lock: Lock,
+  shield: Shield,
+  music: Music,
+  droplets: Droplets,
+  camera: Camera
 };
 
-export default function RelayCard({ relay, onToggle }) {
+export default function RelayCard({ relay, onToggle, onUpdateRelay, backendUrl }) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(relay.name);
   const [iconKey, setIconKey] = useState(relay.icon || 'power');
@@ -20,13 +32,16 @@ export default function RelayCard({ relay, onToggle }) {
 
   const handleSave = async () => {
     try {
-      await axios.put(`/api/relays/${relay.id}`, { name, icon: iconKey });
-      relay.name = name;
-      relay.icon = iconKey;
-      setIsEditing(false);
+      const baseUrl = backendUrl || '';
+      await axios.put(`${baseUrl}/api/relays/${relay.id || relay.channel}`, { name, icon: iconKey });
     } catch (err) {
-      console.error('Failed to update relay', err);
+      console.warn('Backend icon update notice:', err);
     }
+
+    if (onUpdateRelay) {
+      onUpdateRelay(relay.channel, name, iconKey);
+    }
+    setIsEditing(false);
   };
 
   return (
@@ -70,30 +85,46 @@ export default function RelayCard({ relay, onToggle }) {
 
       {isEditing ? (
         <div className="space-y-3 mt-2">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full bg-gray-950 border border-gray-700 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
-          />
-          <div className="flex items-center justify-between">
-            <select
-              value={iconKey}
-              onChange={(e) => setIconKey(e.target.value)}
-              className="bg-gray-950 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-300 focus:outline-none"
-            >
-              <option value="lightbulb">Lightbulb</option>
-              <option value="fan">Fan</option>
-              <option value="wind">AC / Wind</option>
-              <option value="moon">Moon / Lamp</option>
-              <option value="power">Power</option>
-            </select>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-0.5">Appliance Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-gray-950 border border-gray-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
 
-            <div className="flex items-center gap-1">
-              <button onClick={handleSave} className="p-1 text-emerald-400 hover:text-emerald-300">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex-1">
+              <label className="block text-[10px] text-gray-400 mb-0.5">Choose Icon</label>
+              <select
+                value={iconKey}
+                onChange={(e) => setIconKey(e.target.value)}
+                className="w-full bg-gray-950 border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-300 focus:outline-none"
+              >
+                <option value="lightbulb">💡 Light Bulb</option>
+                <option value="fan">🌀 Ceiling / Exhaust Fan</option>
+                <option value="wind">❄️ AC Unit / Cooler</option>
+                <option value="moon">🌙 Night Lamp</option>
+                <option value="tv">📺 Smart TV</option>
+                <option value="plug">🔌 Wall Socket / Outlet</option>
+                <option value="zap">⚡ High Power Appliance</option>
+                <option value="flame">🔥 Water Heater / Geyser</option>
+                <option value="lock">🔒 Door Lock</option>
+                <option value="shield">🛡️ Security System</option>
+                <option value="music">🎵 Audio / Speaker</option>
+                <option value="droplets">💧 Water Pump / Sprinkler</option>
+                <option value="camera">📹 CCTV Camera</option>
+                <option value="power">🔌 General Power Switch</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1 pt-3">
+              <button onClick={handleSave} className="p-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-600/30">
                 <Check className="w-4 h-4" />
               </button>
-              <button onClick={() => setIsEditing(false)} className="p-1 text-red-400 hover:text-red-300">
+              <button onClick={() => setIsEditing(false)} className="p-1.5 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-600/30">
                 <X className="w-4 h-4" />
               </button>
             </div>

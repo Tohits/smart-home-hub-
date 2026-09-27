@@ -134,6 +134,14 @@ export default function App() {
     }
   };
 
+  const handleUpdateRelayMetadata = (channel, newName, newIcon) => {
+    setRelays((prev) =>
+      prev.map((r) =>
+        r.channel === channel ? { ...r, name: newName, icon: newIcon } : r
+      )
+    );
+  };
+
   const handleRebootDevice = async () => {
     if (!window.confirm('Are you sure you want to reboot the NodeMCU controller?')) return;
     try {
@@ -208,12 +216,18 @@ export default function App() {
       {activeTab === 'dashboard' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {relays.map((relay) => (
-            <RelayCard key={relay.id || relay.channel} relay={relay} onToggle={handleToggleRelay} />
+            <RelayCard
+              key={relay.id || relay.channel}
+              relay={relay}
+              onToggle={handleToggleRelay}
+              onUpdateRelay={handleUpdateRelayMetadata}
+              backendUrl={backendUrl}
+            />
           ))}
         </div>
       )}
 
-      {activeTab === 'automation' && <ScheduleManager />}
+      {activeTab === 'automation' && <ScheduleManager backendUrl={backendUrl} />}
 
       {activeTab === 'ota' && <OtaManager otaStatus={otaStatus} />}
 
