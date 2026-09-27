@@ -48,8 +48,13 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
 
     try {
       setSubscribing(true);
-      const res = await axios.get(`${backendUrl || ''}/api/push/vapid-key`);
-      const publicKey = res.data.publicKey;
+      const baseUrl = backendUrl || '';
+      const res = await axios.get(`${baseUrl}/api/push/vapid-key`);
+      const publicKey = res.data?.publicKey;
+
+      if (!publicKey) {
+        throw new Error('Please click "Backend Config" and enter your Render Backend URL first.');
+      }
 
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
@@ -57,18 +62,21 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
         applicationServerKey: urlBase64ToUint8Array(publicKey)
       });
 
-      await axios.post(`${backendUrl || ''}/api/push/subscribe`, sub.toJSON());
+      await axios.post(`${baseUrl}/api/push/subscribe`, sub.toJSON());
       setPushSubscribed(true);
       alert('VAPID Web Push Notifications enabled!');
     } catch (err) {
       console.error(err);
-      alert('Push subscription notice: ' + err.message);
+      alert('Push subscription notice: ' + (err.response?.data?.error || err.message));
     } finally {
       setSubscribing(false);
     }
   };
 
   const urlBase64ToUint8Array = (base64String) => {
+    if (!base64String || typeof base64String !== 'string') {
+      throw new Error('VAPID public key string is invalid.');
+    }
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
     const rawData = window.atob(base64);
