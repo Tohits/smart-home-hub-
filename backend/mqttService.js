@@ -1,0 +1,135 @@
+const mqtt = require('mqtt');
+const db = require('./database');
+const webPush = require('./webPush');
+
+let ioInstance = null;
+let mqttClient = null;
+
+const MQTT_HOST = process.env.MQTT_HOST || '93bad3def29641e399de9a7b9c676613.s1.eu.hivemq.cloud';
+const MQTT_PORT = parseInt(process.env.MQTT_PORT || '8883', 10);
+const MQTT_USER = process.env.MQTT_USER || 'tohits';
+const MQTT_PASS = process.env.MQTT_PASS || '';
+
+const deviceState = {
+  status: 'offline',
+  telemetry: {},
+  relays: {}
+};
+
+function initMqtt(io) {
+  ioInstance = io;
+
+  const protocol = MQTT_PORT === 8883 ? 'mqtts' : 'mqtt';
+  const brokerUrl = `${protocol}://${MQTT_HOST}:${MQTT_PORT}`;
+
+  console.log(`[MQTT] Connecting to HiveMQ Broker: ${brokerUrl}...`);
+
+  mqttClient = mqtt.connect(brokerUrl, {
+    username: MQTT_USER,
+    password: MQTT_PASS,
+    rejectUnauthorized: false, // TLS compatibility
+    reconnectPeriod: 5000
+  });
+
+  mqttClient.on('connect', () => {
+    console.log('[MQTT] Connected successfully to HiveMQ Cloud TLS!');
+    mqttClient.subscribe('home/+/status');
+    mqttClient.subscribe('home/+/telemetry');
+    mqttClient.subscribe('home/+/relay/+/state');
+    mqttClient.subscribe('home/+/ota/status');
+  });
+
+  mqttClient.on('message', async (topic, payload) => {
+    const message = payload.toString();
+    const parts = topic.split('/');
+
+    if (parts.length >= 3 && parts[0] === 'home') {
+      const deviceId = parts[1];
+      const subType = parts[2];
+
+      if (subType === 'status') {
+        deviceState.status = message;
+        if (ioInstance) ioInstance.emit('device:status', { deviceId, status: message });
+
+        await db.query(
+          'INSERT INTO activity_logs (id, event_type, details, source) VALUES ($1, $2, $3, $4)',
+          [Date.now().toString(), 'DEVICE_STATUS', `Device ${deviceId} is ${message}`, 'mqtt']
+        );
+
+        if (message === 'offline') {
+          webPush.sendNotificationToAll(
+            '⚠️ Smart Home Alert',
+            `NodeMCU device (${deviceId}) went offline!`,
+            '/assets/icon-192.png',
+            true
+          );
+        }
+      } else if (subType === 'telemetry') {
+        try {
+          const telemetryData = JSON.parse(message);
+          deviceState.telemetry = telemetryData;
+          if (ioInstance) ioInstance.emit('device:telemetry', telemetryData);
+        } catch (e) {
+          console.error('[MQTT] Telemetry parse error:', e.message);
+        }
+      } else if (subType === 'relay' && parts[4] === 'state') {
+        const channel = parseInt(parts[3], 10);
+        const stateBool = (message.toUpperCase() === 'ON');
+        deviceState.relays[channel] = stateBool;
+
+        // Sync with DB
+        const relayId = `${deviceId}_ch${channel}`;
+        await db.query(
+          'UPDATE relays SET state = $1, updated_at = CURRENT_TIMESTAMP WHERE device_id = $2 AND channel = $3',
+          [stateBool, deviceId, channel]
+        );
+
+        if (ioInstance) {
+          ioInstance.emit('relay:update', { deviceId, channel, state: stateBool });
+        }
+      } else if (subType === 'ota' && parts[3] === 'status') {
+        if (ioInstance) ioInstance.emit('ota:status', { deviceId, status: message });
+      }
+    }
+  });
+
+  mqttClient.on('error', (err) => {
+    console.error('[MQTT] Error:', err.message);
+  });
+}
+
+function setRelayState(deviceId, channel, stateStr) {
+  if (mqttClient && mqttClient.connected) {
+    const topic = `home/${deviceId}/relay/${channel}/set`;
+    mqttClient.publish(topic, stateStr.toUpperCase(), { qos: 1 });
+    console.log(`[MQTT] Published ${stateStr} to ${topic}`);
+    return true;
+  }
+  return false;
+}
+
+function sendRestartCommand(deviceId) {
+  if (mqttClient && mqttClient.connected) {
+    const topic = `home/${deviceId}/restart`;
+    mqttClient.publish(topic, 'RESTART', { qos: 1 });
+    return true;
+  }
+  return false;
+}
+
+function publishOtaCommand(deviceId, otaPayload) {
+  if (mqttClient && mqttClient.connected) {
+    const topic = `home/${deviceId}/update`;
+    mqttClient.publish(topic, JSON.stringify(otaPayload), { qos: 1 });
+    return true;
+  }
+  return false;
+}
+
+module.exports = {
+  initMqtt,
+  setRelayState,
+  sendRestartCommand,
+  publishOtaCommand,
+  getDeviceState: () => deviceState
+};

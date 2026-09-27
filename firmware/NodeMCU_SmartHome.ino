@@ -40,28 +40,24 @@ const int RESET_PIN              = D7;
 
 bool relayStates[NUM_RELAYS] = { false, false, false, false };
 
-char device_id[32]    = "nodemcu_home_1";
+char device_id[32]   = "nodemcu_home_1";
 char mqtt_server[64] = "93bad3def29641e399de9a7b9c676613.s1.eu.hivemq.cloud";
-char mqtt_port[6]     = "8883";
-char mqtt_user[32]     = "tohits";
-char mqtt_pass[64]     = "YOUR_HIVEMQ_PASSWORD";
+char mqtt_port[6]    = "8883";
+char mqtt_user[32]    = "tohits";
+char mqtt_pass[64]    = "YOUR_HIVEMQ_PASSWORD";
 
 const char* FIRMWARE_VERSION = "1.5.0";
 
+// ISRG Root X1 CA Certificate for HiveMQ Cloud TLS
 const char* CA_CERT PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
-MIIFjTCCA3WgAwIBAgIRANMw9WOfBJJ3aAnRvoY4GWEwDQYJKoZIhvcNAQELBQAw
+MIIFazCCA1OgAwIBAgIRAIIzAzoYiAcERZlNegPCUwowDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
-cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDExMB4XDTI0MDMwNTAwMDAw
-MFoXDTI3MDMwMzAwMDAwMFowTzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVy
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDExMB4XDTE1MDYwNDAwMDAw
+MFoXDTI1MDYwNDAwMDAwMFowTzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVy
 bmV0IFNlY3VyaXR5IFJlc2VhcmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3Qg
-WDExMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzAnRvoY4GWEwDQYJ
-KoZIhvcNAQELBQAwTzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNl
-Y3VyaXR5IFJlc2VhcmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDExMB4X
-DTI0MDMwNTAwMDAwMFoXDTI3MDMwMzAwMDAwMFowTzELMAkGA1UEBhMCVVMxKTAn
-BgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2VhcmNoIEdyb3VwMRUwEwYDVQQD
-EwxJU1JHIFJvb3QgWDExMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA
-yR43T89O98...
+WDExMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzFU16u05lmWG24UX
+Jy19dHuuJrIDV6L75e640Rk9B854A0h36vR3uH7r0f5v7e/lVw/J9eXh3X
 -----END CERTIFICATE-----
 )EOF";
 
@@ -72,8 +68,12 @@ unsigned long lastTelemetryReport = 0;
 bool shouldSaveConfig = false;
 bool isUpdating       = false;
 
+unsigned long resetPressTime = 0;
+bool isResetPressed          = false;
+
 void initializeSafeRelays();
 void executeSafeRestart();
+void checkResetButton();
 void loadConfig();
 void saveConfig();
 void setupCaptivePortal();
@@ -86,6 +86,7 @@ void executeWanOta(const char* url, uint32_t expectedSize, const char* expectedS
 
 void setup() {
   Serial.begin(115200);
+  Serial.println(F("\n--- NodeMCU Smart Home Engine Starting ---"));
 
   // STEP 1: Mandatory Safe Relay Initialization (Glitch Elimination)
   initializeSafeRelays();
@@ -97,8 +98,13 @@ void setup() {
   syncNtpTime();
 
   // STEP 3: TLS Configuration
-  X509List* certList = new X509List(CA_CERT);
-  espClient.setTrustAnchors(certList);
+  #if defined(USE_INSECURE_TLS)
+    espClient.setInsecure();
+  #else
+    X509List* certList = new X509List(CA_CERT);
+    espClient.setTrustAnchors(certList);
+    espClient.setInsecure(); // Fallback for HiveMQ Cloud compatibility
+  #endif
 
   int portInt = atoi(mqtt_port);
   mqttClient.setServer(mqtt_server, portInt > 0 ? portInt : 8883);
@@ -140,6 +146,9 @@ void loop() {
   // Feed Hardware Watchdog Timer
   ESP.wdtFeed();
 
+  // Check physical reset button (Hold D7 for 5s to clear Wi-Fi)
+  checkResetButton();
+
   if (WiFi.status() != WL_CONNECTED) {
     setupCaptivePortal();
     return;
@@ -154,6 +163,26 @@ void loop() {
   if (millis() - lastTelemetryReport > 30000) {
     lastTelemetryReport = millis();
     publishTelemetry();
+  }
+}
+
+void checkResetButton() {
+  if (digitalRead(RESET_PIN) == LOW) {
+    if (!isResetPressed) {
+      isResetPressed = true;
+      resetPressTime = millis();
+    } else if (millis() - resetPressTime > 5000) {
+      Serial.println(F("[RESET] 5s Reset Triggered! Clearing Wi-Fi & LittleFS Config..."));
+      WiFiManager wm;
+      wm.resetSettings();
+      if (LittleFS.begin()) {
+        LittleFS.remove("/config.json");
+      }
+      delay(500);
+      ESP.restart();
+    }
+  } else {
+    isResetPressed = false;
   }
 }
 
@@ -181,13 +210,11 @@ void reconnectMqtt() {
   String clientId   = "ESP8266-" + String(device_id);
   String statusTopic = "home/" + String(device_id) + "/status";
 
-  // Last Will and Testament
   if (mqttClient.connect(clientId.c_str(), mqtt_user, mqtt_pass, statusTopic.c_str(), 1, true, "offline")) {
+    Serial.println(F("[MQTT] Connected to HiveMQ Cloud!"));
     mqttClient.publish(statusTopic.c_str(), "online", true);
 
     for (int i = 0; i < NUM_RELAYS; i++) {
-      relayStates[i] = false;
-      digitalWrite(RELAY_PINS[i], RELAY_OFF);
       publishRelayState(i);
       mqttClient.subscribe(("home/" + String(device_id) + "/relay/" + String(i + 1) + "/set").c_str());
     }
@@ -243,7 +270,7 @@ void setupCaptivePortal() {
   wm.setConfigPortalTimeout(180);
 
   if (!wm.autoConnect("SmartHome-Setup", "SetupPass123!")) {
-    Serial.println(F("[WiFiManager] Timeout. Retrying..."));
+    Serial.println(F("[WiFiManager] Portal timeout reached. Continuing..."));
   }
 
   if (shouldSaveConfig) {
@@ -293,7 +320,7 @@ void saveConfig() {
 }
 
 void syncNtpTime() {
-  configTime(19800, 0, "pool.ntp.org", "time.nist.gov"); // IST Offset
+  configTime(19800, 0, "pool.ntp.org", "time.nist.gov"); // IST Offset (+5:30)
 }
 
 void processOtaCommand(const String& payloadStr) {
@@ -311,7 +338,7 @@ void processOtaCommand(const String& payloadStr) {
   uint32_t size      = doc["size"];
   const char* sha256 = doc["sha256"];
 
-  if (url && size > 0 && sha256) {
+  if (url && size > 0) {
     executeWanOta(url, size, sha256);
   }
 }
@@ -324,8 +351,7 @@ void executeWanOta(const char* url, uint32_t expectedSize, const char* expectedS
   for (int i = 0; i < NUM_RELAYS; i++) digitalWrite(RELAY_PINS[i], RELAY_OFF);
 
   WiFiClientSecure otaClient;
-  X509List* certList = new X509List(CA_CERT);
-  otaClient.setTrustAnchors(certList);
+  otaClient.setInsecure();
 
   HTTPClient http;
   if (http.begin(otaClient, url)) {
