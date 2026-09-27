@@ -197,8 +197,8 @@ io.on('connection', (socket) => {
 });
 
 // Start HTTP Server
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n=================================================`);
-  console.log(`🚀 Smart Home Hub Backend running on port ${PORT}`);
+  console.log(`🚀 Smart Home Hub Backend running on 0.0.0.0:${PORT}`);
   console.log(`=================================================\n`);
 });

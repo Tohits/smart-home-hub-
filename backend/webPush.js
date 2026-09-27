@@ -4,26 +4,37 @@ const db = require('./database');
 let vapidPublic = process.env.VAPID_PUBLIC_KEY;
 let vapidPrivate = process.env.VAPID_PRIVATE_KEY;
 
-if (!vapidPublic || !vapidPrivate || vapidPublic.includes('YOUR_VAPID')) {
-  console.log('[WebPush] Generating transient VAPID keys for session...');
-  const vapidKeys = webpush.generateVAPIDKeys();
-  vapidPublic = vapidKeys.publicKey;
-  vapidPrivate = vapidKeys.privateKey;
-  console.log(`[WebPush] Transient Public Key: ${vapidPublic}`);
+function initVapid() {
+  try {
+    if (!vapidPublic || !vapidPrivate || vapidPublic.includes('YOUR_VAPID') || vapidPublic.length < 30) {
+      throw new Error('VAPID keys missing or invalid');
+    }
+    webpush.setVapidDetails(
+      'mailto:admin@smarthomehub.local',
+      vapidPublic,
+      vapidPrivate
+    );
+    console.log('[WebPush] VAPID details configured successfully.');
+  } catch (err) {
+    console.warn('[WebPush] Auto-generating valid session VAPID keypair fallback:', err.message);
+    const keys = webpush.generateVAPIDKeys();
+    vapidPublic = keys.publicKey;
+    vapidPrivate = keys.privateKey;
+    webpush.setVapidDetails(
+      'mailto:admin@smarthomehub.local',
+      vapidPublic,
+      vapidPrivate
+    );
+  }
 }
 
-webpush.setVapidDetails(
-  'mailto:admin@smarthomehub.local',
-  vapidPublic,
-  vapidPrivate
-);
+initVapid();
 
 async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png', quietHoursAllowed = false) {
-  // Check Quiet Hours (e.g. 11 PM to 6 AM) unless quietHoursAllowed is true
   const now = new Date();
   const currentHour = now.getHours();
   if (!quietHoursAllowed && (currentHour >= 23 || currentHour < 6)) {
-    console.log('[WebPush] Skipping push notification during Quiet Hours (11 PM - 6 AM)');
+    console.log('[WebPush] Skipping push notification during Quiet Hours');
     return;
   }
 
@@ -41,10 +52,7 @@ async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png',
 
       return webpush.sendNotification(pushSubscription, payload).catch(err => {
         if (err.statusCode === 410 || err.statusCode === 404) {
-          console.log(`[WebPush] Removing expired subscription endpoint: ${sub.endpoint}`);
           db.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
-        } else {
-          console.error('[WebPush] Send error:', err.message);
         }
       });
     });
