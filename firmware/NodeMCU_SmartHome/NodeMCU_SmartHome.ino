@@ -6,6 +6,7 @@
   - Hardware Reset Button: D7 (Hold 5s to clear Wi-Fi settings)
   - Scheduled Maintenance: Automatic 12-Hour System Reboot with State Memory
   - Flash State Persistence: Relay ON/OFF states saved to LittleFS and restored on boot
+  - Optocoupler Cut-Off: INPUT_PULLUP cut-off on active-LOW 5V relay modules
   - MQTT Broker: HiveMQ Cloud TLS Port 8883
   - Wi-Fi Provisioning: WiFiManager Captive Portal "SmartHome-Setup"
   - Topics: home/{deviceId}/relay/{1-4}/set, home/{deviceId}/relay/{1-4}/state,
@@ -76,6 +77,7 @@ bool isUpdating       = false;
 unsigned long resetPressTime = 0;
 bool isResetPressed          = false;
 
+void setRelayHardware(int channelIndex, bool turnOn);
 void initializeSafeRelays();
 void loadRelayStates();
 void saveRelayStates();
@@ -142,8 +144,7 @@ void setup() {
       if (t == "home/" + String(device_id) + "/relay/" + String(i + 1) + "/set") {
         msg.toUpperCase();
         bool turnOn = (msg == "ON");
-        relayStates[i] = turnOn;
-        digitalWrite(RELAY_PINS[i], turnOn ? RELAY_ON : RELAY_OFF);
+        setRelayHardware(i, turnOn);
         saveRelayStates(); // Save updated state to Flash immediately
         publishRelayState(i);
         break;
@@ -186,6 +187,31 @@ void loop() {
   }
 }
 
+void setRelayHardware(int channelIndex, bool turnOn) {
+  if (channelIndex < 0 || channelIndex >= NUM_RELAYS) return;
+
+  relayStates[channelIndex] = turnOn;
+  int pin = RELAY_PINS[channelIndex];
+
+  #if RELAY_ACTIVE_LOW
+    if (turnOn) {
+      pinMode(pin, OUTPUT);
+      digitalWrite(pin, LOW);     // 0V pulls active-LOW optocoupler ON
+    } else {
+      digitalWrite(pin, HIGH);
+      pinMode(pin, INPUT_PULLUP); // High Impedance cuts off 5V optocoupler completely!
+    }
+  #else
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, turnOn ? HIGH : LOW);
+  #endif
+
+  Serial.print(F("[Relay Hardware] Channel "));
+  Serial.print(channelIndex + 1);
+  Serial.print(F(" -> "));
+  Serial.println(turnOn ? F("ON") : F("OFF"));
+}
+
 void checkResetButton() {
   if (digitalRead(RESET_PIN) == LOW) {
     if (!isResetPressed) {
@@ -211,8 +237,7 @@ void initializeSafeRelays() {
   loadRelayStates(); // Restore saved relay states from Flash memory
 
   for (int i = 0; i < NUM_RELAYS; i++) {
-    pinMode(RELAY_PINS[i], OUTPUT);
-    digitalWrite(RELAY_PINS[i], relayStates[i] ? RELAY_ON : RELAY_OFF);
+    setRelayHardware(i, relayStates[i]);
   }
 }
 
@@ -416,7 +441,7 @@ void executeWanOta(const char* url, uint32_t expectedSize, const char* expectedS
   String otaStatusTopic = "home/" + String(device_id) + "/ota/status";
   mqttClient.publish(otaStatusTopic.c_str(), "DOWNLOADING", true);
 
-  for (int i = 0; i < NUM_RELAYS; i++) digitalWrite(RELAY_PINS[i], RELAY_OFF);
+  for (int i = 0; i < NUM_RELAYS; i++) setRelayHardware(i, false);
 
   WiFiClientSecure otaClient;
   otaClient.setInsecure();
