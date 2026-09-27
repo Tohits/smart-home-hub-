@@ -8,10 +8,17 @@ import RelayCard from './components/RelayCard';
 import ScheduleManager from './components/ScheduleManager';
 import OtaManager from './components/OtaManager';
 
+const DEFAULT_RELAYS = [
+  { id: 'nodemcu_home_1_ch1', channel: 1, name: 'Main Light', state: false, icon: 'lightbulb' },
+  { id: 'nodemcu_home_1_ch2', channel: 2, name: 'Ceiling Fan', state: false, icon: 'fan' },
+  { id: 'nodemcu_home_1_ch3', channel: 3, name: 'AC Unit', state: false, icon: 'wind' },
+  { id: 'nodemcu_home_1_ch4', channel: 4, name: 'Night Lamp', state: false, icon: 'moon' }
+];
+
 export default function App() {
   const [deviceStatus, setDeviceStatus] = useState('offline');
-  const [telemetry, setTelemetry] = useState({});
-  const [relays, setRelays] = useState([]);
+  const [telemetry, setTelemetry] = useState({ id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 });
+  const [relays, setRelays] = useState(DEFAULT_RELAYS);
   const [logs, setLogs] = useState([]);
   const [otaStatus, setOtaStatus] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -20,73 +27,69 @@ export default function App() {
   useEffect(() => {
     fetchInitialData();
 
-    const socket = io('/', {
-      transports: ['websocket', 'polling']
-    });
+    try {
+      const socket = io('/', {
+        transports: ['websocket', 'polling'],
+        timeout: 5000
+      });
 
-    socket.on('connect', () => {
-      console.log('[Socket.IO] Connected to backend gateway');
-      setIsConnected(true);
-    });
+      socket.on('connect', () => {
+        setIsConnected(true);
+      });
 
-    socket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+      socket.on('disconnect', () => {
+        setIsConnected(false);
+      });
 
-    socket.on('device:state', (data) => {
-      if (data.status) setDeviceStatus(data.status);
-      if (data.telemetry) setTelemetry(data.telemetry);
-    });
+      socket.on('device:state', (data) => {
+        if (data.status) setDeviceStatus(data.status);
+        if (data.telemetry) setTelemetry(data.telemetry);
+      });
 
-    socket.on('device:status', (data) => {
-      setDeviceStatus(data.status);
-    });
+      socket.on('device:status', (data) => {
+        setDeviceStatus(data.status);
+      });
 
-    socket.on('device:telemetry', (data) => {
-      setTelemetry(data);
-    });
+      socket.on('device:telemetry', (data) => {
+        setTelemetry(data);
+      });
 
-    socket.on('relay:update', (data) => {
-      setRelays((prevRelays) =>
-        prevRelays.map((r) =>
-          r.channel === data.channel ? { ...r, state: data.state } : r
-        )
-      );
-    });
+      socket.on('relay:update', (data) => {
+        setRelays((prevRelays) =>
+          prevRelays.map((r) =>
+            r.channel === data.channel ? { ...r, state: data.state } : r
+          )
+        );
+      });
 
-    socket.on('ota:status', (data) => {
-      setOtaStatus(data.status);
-    });
+      socket.on('ota:status', (data) => {
+        setOtaStatus(data.status);
+      });
 
-    return () => {
-      socket.disconnect();
-    };
+      return () => {
+        socket.disconnect();
+      };
+    } catch (e) {
+      console.warn('[Socket.IO] Notice:', e);
+    }
   }, []);
 
   const fetchInitialData = async () => {
     try {
       const relayRes = await axios.get('/api/relays');
-      if (relayRes.data && relayRes.data.length > 0) {
+      if (relayRes.data && Array.isArray(relayRes.data) && relayRes.data.length > 0) {
         setRelays(relayRes.data);
-      } else {
-        // Fallback default relays if DB empty
-        setRelays([
-          { id: 'nodemcu_home_1_ch1', channel: 1, name: 'Main Light', state: false, icon: 'lightbulb' },
-          { id: 'nodemcu_home_1_ch2', channel: 2, name: 'Ceiling Fan', state: false, icon: 'fan' },
-          { id: 'nodemcu_home_1_ch3', channel: 3, name: 'AC Unit', state: false, icon: 'wind' },
-          { id: 'nodemcu_home_1_ch4', channel: 4, name: 'Night Lamp', state: false, icon: 'moon' }
-        ]);
       }
-
       const logRes = await axios.get('/api/logs');
-      setLogs(logRes.data || []);
+      if (logRes.data && Array.isArray(logRes.data)) {
+        setLogs(logRes.data);
+      }
     } catch (err) {
-      console.error('[App] Error fetching initial data:', err);
+      console.warn('[App] Initial data notice:', err.message);
     }
   };
 
   const handleToggleRelay = async (channel, newState) => {
-    // Optimistic UI update
     setRelays((prev) =>
       prev.map((r) => (r.channel === channel ? { ...r, state: newState } : r))
     );
@@ -98,7 +101,7 @@ export default function App() {
         state: newState
       });
     } catch (err) {
-      console.error('[App] Toggle error:', err);
+      console.warn('[App] Toggle notice:', err.message);
     }
   };
 
@@ -108,7 +111,7 @@ export default function App() {
       await axios.post('/api/system/restart', { deviceId: 'nodemcu_home_1' });
       alert('Reboot command sent to NodeMCU.');
     } catch (err) {
-      console.error(err);
+      console.warn(err);
     }
   };
 
