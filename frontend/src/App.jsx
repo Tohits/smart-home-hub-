@@ -8,6 +8,8 @@ import RelayCard from './components/RelayCard';
 import ScheduleManager from './components/ScheduleManager';
 import OtaManager from './components/OtaManager';
 
+const RENDER_BACKEND_URL = 'https://smart-home-backend-16eu.onrender.com';
+
 const DEFAULT_RELAYS = [
   { id: 'nodemcu_home_1_ch1', channel: 1, name: 'Main Light', state: false, icon: 'lightbulb' },
   { id: 'nodemcu_home_1_ch2', channel: 2, name: 'Ceiling Fan', state: false, icon: 'fan' },
@@ -27,7 +29,7 @@ const getSavedRelays = () => {
 };
 
 export default function App() {
-  const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || '');
+  const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || RENDER_BACKEND_URL);
   const [deviceStatus, setDeviceStatus] = useState('offline');
   const [telemetry, setTelemetry] = useState({ id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 });
   const [relays, setRelays] = useState(getSavedRelays);
@@ -52,7 +54,7 @@ export default function App() {
     fetchInitialData();
 
     try {
-      const socketTarget = backendUrl || '/';
+      const socketTarget = backendUrl || RENDER_BACKEND_URL;
       const socket = io(socketTarget, {
         transports: ['websocket', 'polling'],
         timeout: 5000
@@ -101,7 +103,7 @@ export default function App() {
 
   const fetchInitialData = async () => {
     try {
-      const baseUrl = backendUrl || '';
+      const baseUrl = backendUrl || RENDER_BACKEND_URL;
       const relayRes = await axios.get(`${baseUrl}/api/relays`);
       if (relayRes.data && Array.isArray(relayRes.data) && relayRes.data.length > 0) {
         setRelays(relayRes.data);
@@ -121,7 +123,7 @@ export default function App() {
     );
 
     try {
-      const baseUrl = backendUrl || '';
+      const baseUrl = backendUrl || RENDER_BACKEND_URL;
       await axios.post(`${baseUrl}/api/relays/toggle`, {
         deviceId: 'nodemcu_home_1',
         channel,
@@ -135,7 +137,7 @@ export default function App() {
   const handleRebootDevice = async () => {
     if (!window.confirm('Are you sure you want to reboot the NodeMCU controller?')) return;
     try {
-      const baseUrl = backendUrl || '';
+      const baseUrl = backendUrl || RENDER_BACKEND_URL;
       await axios.post(`${baseUrl}/api/system/restart`, { deviceId: 'nodemcu_home_1' });
       alert('Reboot command sent to NodeMCU.');
     } catch (err) {
