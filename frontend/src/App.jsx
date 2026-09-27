@@ -22,13 +22,12 @@ const getSavedRelays = () => {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length === 4) return parsed;
     }
-  } catch (e) {
-    console.warn('localStorage read notice:', e);
-  }
+  } catch (e) {}
   return DEFAULT_RELAYS;
 };
 
 export default function App() {
+  const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || '');
   const [deviceStatus, setDeviceStatus] = useState('offline');
   const [telemetry, setTelemetry] = useState({ id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 });
   const [relays, setRelays] = useState(getSavedRelays);
@@ -37,20 +36,24 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Persist relay states to localStorage whenever relays state changes
+  const handleSaveBackendUrl = (newUrl) => {
+    let cleanUrl = newUrl;
+    if (cleanUrl.endsWith('/')) cleanUrl = cleanUrl.slice(0, -1);
+    setBackendUrl(cleanUrl);
+    localStorage.setItem('smarthome_backend_url', cleanUrl);
+    window.location.reload();
+  };
+
   useEffect(() => {
-    try {
-      localStorage.setItem('smarthome_relays', JSON.stringify(relays));
-    } catch (e) {
-      console.warn('localStorage save notice:', e);
-    }
+    localStorage.setItem('smarthome_relays', JSON.stringify(relays));
   }, [relays]);
 
   useEffect(() => {
     fetchInitialData();
 
     try {
-      const socket = io('/', {
+      const socketTarget = backendUrl || '/';
+      const socket = io(socketTarget, {
         transports: ['websocket', 'polling'],
         timeout: 5000
       });
@@ -94,15 +97,16 @@ export default function App() {
     } catch (e) {
       console.warn('[Socket.IO] Notice:', e);
     }
-  }, []);
+  }, [backendUrl]);
 
   const fetchInitialData = async () => {
     try {
-      const relayRes = await axios.get('/api/relays');
+      const baseUrl = backendUrl || '';
+      const relayRes = await axios.get(`${baseUrl}/api/relays`);
       if (relayRes.data && Array.isArray(relayRes.data) && relayRes.data.length > 0) {
         setRelays(relayRes.data);
       }
-      const logRes = await axios.get('/api/logs');
+      const logRes = await axios.get(`${baseUrl}/api/logs`);
       if (logRes.data && Array.isArray(logRes.data)) {
         setLogs(logRes.data);
       }
@@ -117,7 +121,8 @@ export default function App() {
     );
 
     try {
-      await axios.post('/api/relays/toggle', {
+      const baseUrl = backendUrl || '';
+      await axios.post(`${baseUrl}/api/relays/toggle`, {
         deviceId: 'nodemcu_home_1',
         channel,
         state: newState
@@ -130,7 +135,8 @@ export default function App() {
   const handleRebootDevice = async () => {
     if (!window.confirm('Are you sure you want to reboot the NodeMCU controller?')) return;
     try {
-      await axios.post('/api/system/restart', { deviceId: 'nodemcu_home_1' });
+      const baseUrl = backendUrl || '';
+      await axios.post(`${baseUrl}/api/system/restart`, { deviceId: 'nodemcu_home_1' });
       alert('Reboot command sent to NodeMCU.');
     } catch (err) {
       console.warn(err);
@@ -145,6 +151,8 @@ export default function App() {
         telemetry={telemetry}
         isConnected={isConnected}
         onRestart={handleRebootDevice}
+        backendUrl={backendUrl}
+        onSaveBackendUrl={handleSaveBackendUrl}
       />
 
       {/* Tab Navigation */}

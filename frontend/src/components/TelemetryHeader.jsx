@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Cpu, Clock, ShieldCheck, BellRing, RefreshCw, Download, Timer } from 'lucide-react';
+import { Wifi, Cpu, Clock, ShieldCheck, BellRing, RefreshCw, Download, Timer, Settings } from 'lucide-react';
 import axios from 'axios';
 
-export default function TelemetryHeader({ status, telemetry, isConnected, onRestart }) {
+export default function TelemetryHeader({ status, telemetry, isConnected, onRestart, backendUrl, onSaveBackendUrl }) {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [inputUrl, setInputUrl] = useState(backendUrl || '');
+
+  useEffect(() => {
+    setInputUrl(backendUrl || '');
+  }, [backendUrl]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -15,6 +21,12 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  const handleSaveUrl = (e) => {
+    e.preventDefault();
+    onSaveBackendUrl(inputUrl.trim());
+    setShowSettings(false);
+  };
 
   const handleInstallPwa = async () => {
     if (deferredPrompt) {
@@ -36,7 +48,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
 
     try {
       setSubscribing(true);
-      const res = await axios.get('/api/push/vapid-key');
+      const res = await axios.get(`${backendUrl || ''}/api/push/vapid-key`);
       const publicKey = res.data.publicKey;
 
       const reg = await navigator.serviceWorker.ready;
@@ -45,7 +57,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
         applicationServerKey: urlBase64ToUint8Array(publicKey)
       });
 
-      await axios.post('/api/push/subscribe', sub.toJSON());
+      await axios.post(`${backendUrl || ''}/api/push/subscribe`, sub.toJSON());
       setPushSubscribed(true);
       alert('VAPID Web Push Notifications enabled!');
     } catch (err) {
@@ -69,7 +81,6 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
 
   const formatTimeRemaining = (seconds) => {
     if (seconds === undefined || seconds === null) {
-      // Default initial calculation before first telemetry message
       const defaultSec = 12 * 3600 - (telemetry.uptime || 0);
       const hrs = Math.max(0, Math.floor(defaultSec / 3600));
       const mins = Math.max(0, Math.floor((defaultSec % 3600) / 60));
@@ -99,6 +110,15 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-xl transition"
+            title="Configure Render Backend URL"
+          >
+            <Settings className="w-3.5 h-3.5 text-amber-400" />
+            Backend Config
+          </button>
+
           <button
             onClick={handleInstallPwa}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition shadow-lg shadow-emerald-600/20"
@@ -130,6 +150,30 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
           </button>
         </div>
       </div>
+
+      {showSettings && (
+        <form onSubmit={handleSaveUrl} className="mb-4 p-3 bg-gray-950 border border-amber-500/30 rounded-xl space-y-2">
+          <label className="block text-xs font-semibold text-amber-400">
+            Render Backend Server URL (e.g. https://smart-home-backend.onrender.com)
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              required
+              placeholder="https://smart-home-backend-xxxx.onrender.com"
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              className="flex-1 bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2 focus:outline-none focus:border-amber-500"
+            />
+            <button
+              type="submit"
+              className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition"
+            >
+              Connect
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-gray-950/50 p-3 rounded-xl border border-gray-800/80">
