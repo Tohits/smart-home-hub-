@@ -4,7 +4,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const path = require('path');
+const fs = require('fs');
 
 const db = require('./database');
 const mqttService = require('./mqttService');
@@ -24,8 +25,15 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'smarthome_super_secret_jwt_key_2026';
 
+// Ensure uploads directory exists for OTA binaries
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(uploadsDir));
 
 // Initialize MQTT & Scheduler Engine
 mqttService.initMqtt(io);
@@ -37,7 +45,6 @@ function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    // For local prototype convenience, allow request if no token supplied
     return next();
   }
 
@@ -105,7 +112,7 @@ app.post('/api/relays/toggle', authenticateToken, async (req, res) => {
   }
 });
 
-// 6. Update Relay Metadata (Name, Icon)
+// 6. Update Relay Metadata
 app.put('/api/relays/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name, icon } = req.body;
@@ -167,7 +174,27 @@ app.post('/api/system/restart', authenticateToken, (req, res) => {
   res.json({ success });
 });
 
-// 12. Dispatch WAN OTA Update
+// 12. Upload Local .bin Firmware File for OTA Hosting
+app.post('/api/system/ota-upload', express.raw({ type: '*/*', limit: '10mb' }), (req, res) => {
+  try {
+    if (!req.body || req.body.length === 0) {
+      return res.status(400).json({ error: 'No binary file data received' });
+    }
+    const filePath = path.join(uploadsDir, 'firmware.bin');
+    fs.writeFileSync(filePath, req.body);
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const fileUrl = `${protocol}://${host}/uploads/firmware.bin`;
+
+    console.log(`[OTA Upload] Firmware binary saved: ${req.body.length} bytes -> ${fileUrl}`);
+    res.json({ success: true, url: fileUrl, size: req.body.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 13. Dispatch WAN OTA Update
 app.post('/api/system/ota', authenticateToken, (req, res) => {
   const { deviceId, url, size, sha256 } = req.body;
   if (!url) return res.status(400).json({ error: 'Firmware URL required' });
@@ -176,7 +203,7 @@ app.post('/api/system/ota', authenticateToken, (req, res) => {
   res.json({ success, message: 'OTA Update broadcast dispatched over MQTT' });
 });
 
-// 13. Activity Logs
+// 14. Activity Logs
 app.get('/api/logs', authenticateToken, async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 50');

@@ -1,14 +1,71 @@
 import React, { useState } from 'react';
-import { DownloadCloud, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { DownloadCloud, FileUp, CheckCircle2, ShieldCheck, HardDrive } from 'lucide-react';
 import axios from 'axios';
 
 export default function OtaManager({ otaStatus }) {
   const [url, setUrl] = useState('');
   const [size, setSize] = useState('');
   const [sha256, setSha256] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [dispatching, setDispatching] = useState(false);
   const [resultMsg, setResultMsg] = useState('');
 
+  // Handle Local .bin File Selection & Hash Calculation
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    setSize(file.size);
+    setResultMsg(`Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+      setSha256(hashHex);
+    } catch (err) {
+      console.warn('SHA256 calculation notice:', err);
+    }
+  };
+
+  // Upload Local File and Trigger OTA
+  const handleUploadAndDispatch = async () => {
+    if (!selectedFile) return;
+
+    try {
+      setUploading(true);
+      setResultMsg('Uploading firmware .bin file to server...');
+
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const uploadRes = await axios.post('/api/system/ota-upload', arrayBuffer, {
+        headers: { 'Content-Type': 'application/octet-stream' }
+      });
+
+      const uploadedUrl = uploadRes.data.url;
+      setUrl(uploadedUrl);
+
+      setResultMsg('Firmware uploaded! Dispatching OTA broadcast over MQTT...');
+
+      // Dispatch OTA command
+      const res = await axios.post('/api/system/ota', {
+        deviceId: 'nodemcu_home_1',
+        url: uploadedUrl,
+        size: selectedFile.size,
+        sha256
+      });
+
+      setResultMsg(res.data.message || 'OTA Update dispatched successfully!');
+    } catch (err) {
+      setResultMsg('Upload/OTA Error: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Dispatch via Manual URL
   const handleDispatchOta = async (e) => {
     e.preventDefault();
     if (!url) return;
@@ -22,7 +79,7 @@ export default function OtaManager({ otaStatus }) {
         size: size ? parseInt(size, 10) : 0,
         sha256
       });
-      setResultMsg(res.data.message || 'OTA Broadcast sent!');
+      setResultMsg(res.data.message || 'OTA Broadcast dispatched!');
     } catch (err) {
       setResultMsg('OTA Error: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -44,12 +101,42 @@ export default function OtaManager({ otaStatus }) {
         </div>
       )}
 
+      {/* Local .bin File Upload Section */}
+      <div className="mb-6 bg-gray-950/80 p-4 rounded-xl border border-gray-800">
+        <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+          <HardDrive className="w-4 h-4" /> Direct File Picker (Arduino IDE .bin)
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-3 mt-3">
+          <label className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs font-semibold py-2.5 px-4 rounded-xl cursor-pointer transition">
+            <FileUp className="w-4 h-4 text-purple-400" />
+            <span>Browse .bin File</span>
+            <input type="file" accept=".bin" onChange={handleFileSelect} className="hidden" />
+          </label>
+
+          {selectedFile && (
+            <button
+              onClick={handleUploadAndDispatch}
+              disabled={uploading}
+              className="w-full sm:w-auto flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold py-2.5 px-4 rounded-xl transition shadow-lg shadow-purple-600/20 flex items-center justify-center gap-2"
+            >
+              <DownloadCloud className="w-4 h-4" />
+              {uploading ? 'Uploading & Deploying...' : 'Upload & Send OTA Update'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Manual URL Form */}
       <form onSubmit={handleDispatchOta} className="space-y-3 bg-gray-950/60 p-4 rounded-xl border border-gray-800">
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+          Or Enter Remote Firmware URL
+        </div>
+
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">HTTPS Binary Firmware URL (.bin)</label>
           <input
             type="url"
-            required
             placeholder="https://raw.githubusercontent.com/.../firmware.bin"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
@@ -59,7 +146,7 @@ export default function OtaManager({ otaStatus }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">File Size (Bytes, Optional)</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">File Size (Bytes)</label>
             <input
               type="number"
               placeholder="485120"
@@ -70,7 +157,7 @@ export default function OtaManager({ otaStatus }) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">SHA-256 Checksum (Optional)</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">SHA-256 Checksum</label>
             <input
               type="text"
               placeholder="a1b2c3d4..."
@@ -83,11 +170,11 @@ export default function OtaManager({ otaStatus }) {
 
         <button
           type="submit"
-          disabled={dispatching}
-          className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold py-2.5 px-4 rounded-xl transition shadow-lg shadow-purple-600/20 flex items-center justify-center gap-2"
+          disabled={dispatching || !url}
+          className="w-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 border border-gray-700"
         >
-          <DownloadCloud className="w-4 h-4" />
-          {dispatching ? 'Broadcasting OTA Payload...' : 'Sign & Dispatch OTA Firmware Update'}
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          {dispatching ? 'Broadcasting Payload...' : 'Dispatch OTA Payload via URL'}
         </button>
 
         {resultMsg && (

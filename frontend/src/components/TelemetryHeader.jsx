@@ -1,10 +1,32 @@
-import React, { useState } from 'react';
-import { Wifi, Cpu, Clock, ShieldCheck, BellRing, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Wifi, Cpu, Clock, ShieldCheck, BellRing, RefreshCw, Download } from 'lucide-react';
 import axios from 'axios';
 
 export default function TelemetryHeader({ status, telemetry, isConnected, onRestart }) {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallPwa = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      alert('To install, tap your browser menu (⋮ or Share icon) and select "Add to Home Screen" or "Install App".');
+    }
+  };
 
   const handleSubscribePush = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -28,7 +50,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
       alert('VAPID Web Push Notifications enabled!');
     } catch (err) {
       console.error(err);
-      alert('Push subscription error: ' + err.message);
+      alert('Push subscription notice: ' + err.message);
     } finally {
       setSubscribing(false);
     }
@@ -62,7 +84,16 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
           <p className="text-xs text-gray-400 mt-1">NodeMCU ESP8266 v1.5.0 • Device ID: {telemetry.id || 'nodemcu_home_1'}</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleInstallPwa}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition shadow-lg shadow-emerald-600/20"
+            title="Install App to Home Screen"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Install App
+          </button>
+
           <button
             onClick={handleSubscribePush}
             disabled={pushSubscribed || subscribing}
@@ -73,7 +104,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
             }`}
           >
             <BellRing className="w-3.5 h-3.5" />
-            {pushSubscribed ? 'Alerts On' : subscribing ? 'Enabling...' : 'Enable Push Alerts'}
+            {pushSubscribed ? 'Alerts On' : subscribing ? 'Enabling...' : 'Push Alerts'}
           </button>
 
           <button
