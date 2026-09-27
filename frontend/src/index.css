@@ -1,7 +1,14 @@
 @import "tailwindcss";
 
+* {
+  box-sizing: border-box;
+}
+
 body {
+  margin: 0;
+  padding: 0;
   background-color: #0b0f19;
   color: #f3f4f6;
   font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
 }
