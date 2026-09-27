@@ -70,6 +70,14 @@ if (!dbClient) {
         if (s.includes('SELECT * FROM SCHEDULES')) return { rows: inMemorySchedules };
         if (s.includes('SELECT * FROM ACTIVITY_LOGS')) return { rows: inMemoryLogs };
         if (s.includes('SELECT * FROM PUSH_SUBSCRIPTIONS')) return { rows: inMemorySubs };
+        if (s.includes('UPDATE RELAYS SET STATE')) {
+          const stateVal = Boolean(params[0]);
+          const devIdVal = params[1];
+          const chanVal = parseInt(params[2], 10);
+          const found = inMemoryRelays.find(r => r.channel === chanVal);
+          if (found) found.state = stateVal;
+          return { rowCount: 1 };
+        }
         return { rows: [] };
       },
       exec: async () => {}

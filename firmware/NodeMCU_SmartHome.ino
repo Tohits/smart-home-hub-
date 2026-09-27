@@ -86,25 +86,25 @@ void executeWanOta(const char* url, uint32_t expectedSize, const char* expectedS
 
 void setup() {
   Serial.begin(115200);
-  Serial.println(F("\n--- NodeMCU Smart Home Engine Starting ---"));
+  delay(500);
+  Serial.println(F("\n================================================="));
+  Serial.println(F("🚀 NodeMCU ESP8266 Smart Home Engine Starting..."));
+  Serial.println(F("================================================="));
 
   // STEP 1: Mandatory Safe Relay Initialization (Glitch Elimination)
   initializeSafeRelays();
   pinMode(RESET_PIN, INPUT_PULLUP);
 
-  // STEP 2: Load Config & Setup Portal
+  // STEP 2: WiFi Mode Station
+  WiFi.mode(WIFI_STA);
+
+  // STEP 3: Load Config & Setup Portal
   loadConfig();
   setupCaptivePortal();
   syncNtpTime();
 
-  // STEP 3: TLS Configuration
-  #if defined(USE_INSECURE_TLS)
-    espClient.setInsecure();
-  #else
-    X509List* certList = new X509List(CA_CERT);
-    espClient.setTrustAnchors(certList);
-    espClient.setInsecure(); // Fallback for HiveMQ Cloud compatibility
-  #endif
+  // STEP 4: TLS Configuration
+  espClient.setInsecure(); // Fast TLS connection to HiveMQ Cloud
 
   int portInt = atoi(mqtt_port);
   mqttClient.setServer(mqtt_server, portInt > 0 ? portInt : 8883);
@@ -116,6 +116,10 @@ void setup() {
     msg.trim();
 
     String t = String(topic);
+    Serial.print(F("[MQTT Message] "));
+    Serial.print(t);
+    Serial.print(F(" -> "));
+    Serial.println(msg);
 
     if (t == "home/" + String(device_id) + "/restart" && msg == "RESTART") {
       executeSafeRestart();
@@ -150,6 +154,7 @@ void loop() {
   checkResetButton();
 
   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(F("[Wi-Fi] Disconnected! Re-launching Provisioning Portal..."));
     setupCaptivePortal();
     return;
   }
@@ -172,7 +177,7 @@ void checkResetButton() {
       isResetPressed = true;
       resetPressTime = millis();
     } else if (millis() - resetPressTime > 5000) {
-      Serial.println(F("[RESET] 5s Reset Triggered! Clearing Wi-Fi & LittleFS Config..."));
+      Serial.println(F("[RESET] 5s Hardware Reset Triggered! Clearing Wi-Fi & LittleFS Config..."));
       WiFiManager wm;
       wm.resetSettings();
       if (LittleFS.begin()) {
@@ -210,8 +215,11 @@ void reconnectMqtt() {
   String clientId   = "ESP8266-" + String(device_id);
   String statusTopic = "home/" + String(device_id) + "/status";
 
+  Serial.print(F("[MQTT] Connecting to HiveMQ Broker: "));
+  Serial.println(mqtt_server);
+
   if (mqttClient.connect(clientId.c_str(), mqtt_user, mqtt_pass, statusTopic.c_str(), 1, true, "offline")) {
-    Serial.println(F("[MQTT] Connected to HiveMQ Cloud!"));
+    Serial.println(F("[MQTT] Connected successfully to HiveMQ Cloud!"));
     mqttClient.publish(statusTopic.c_str(), "online", true);
 
     for (int i = 0; i < NUM_RELAYS; i++) {
@@ -223,6 +231,10 @@ void reconnectMqtt() {
     mqttClient.subscribe(("home/" + String(device_id) + "/restart").c_str());
 
     publishTelemetry();
+  } else {
+    Serial.print(F("[MQTT] Connection failed, rc="));
+    Serial.println(mqttClient.state());
+    delay(2000);
   }
 }
 
@@ -269,8 +281,10 @@ void setupCaptivePortal() {
 
   wm.setConfigPortalTimeout(180);
 
-  if (!wm.autoConnect("SmartHome-Setup", "SetupPass123!")) {
-    Serial.println(F("[WiFiManager] Portal timeout reached. Continuing..."));
+  Serial.println(F("[Wi-Fi] Launching Provisioning Hotspot 'SmartHome-Setup'..."));
+
+  if (!wm.autoConnect("SmartHome-Setup", "12345678")) {
+    Serial.println(F("[Wi-Fi] Portal timeout reached. Retrying..."));
   }
 
   if (shouldSaveConfig) {

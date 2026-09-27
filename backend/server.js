@@ -102,14 +102,21 @@ app.get('/api/relays', authenticateToken, async (req, res) => {
 // 5. Toggle Relay Channel
 app.post('/api/relays/toggle', authenticateToken, async (req, res) => {
   const { deviceId, channel, state } = req.body;
-  const stateStr = state ? 'ON' : 'OFF';
+  const stateBool = Boolean(state);
+  const stateStr = stateBool ? 'ON' : 'OFF';
+  const devId = deviceId || 'nodemcu_home_1';
 
-  const success = mqttService.setRelayState(deviceId || 'nodemcu_home_1', channel, stateStr);
-  if (success) {
-    res.json({ success: true, channel, state });
-  } else {
-    res.status(503).json({ error: 'MQTT Broker disconnected' });
+  try {
+    await db.query(
+      'UPDATE relays SET state = $1, updated_at = CURRENT_TIMESTAMP WHERE device_id = $2 AND channel = $3',
+      [stateBool, devId, channel]
+    );
+  } catch (err) {
+    console.error('[DB] Relay state update error:', err.message);
   }
+
+  const success = mqttService.setRelayState(devId, channel, stateStr);
+  res.json({ success: true, channel, state: stateBool, mqttSent: success });
 });
 
 // 6. Update Relay Metadata
