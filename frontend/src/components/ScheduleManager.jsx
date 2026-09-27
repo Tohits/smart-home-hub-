@@ -2,21 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Sun, Moon, Plus, Trash2, Clock } from 'lucide-react';
 import axios from 'axios';
 
-export default function ScheduleManager() {
+export default function ScheduleManager({ backendUrl }) {
   const [schedules, setSchedules] = useState([]);
   const [channel, setChannel] = useState(1);
   const [action, setAction] = useState('ON');
-  const [scheduleType, setScheduleType] = useState('time'); // 'time' or 'solar'
+  const [scheduleType, setScheduleType] = useState('time');
   const [timeStr, setTimeStr] = useState('07:00');
   const [solarEvent, setSolarEvent] = useState('sunrise');
 
   useEffect(() => {
     fetchSchedules();
-  }, []);
+  }, [backendUrl]);
 
   const fetchSchedules = async () => {
     try {
-      const res = await axios.get('/api/schedules');
+      const baseUrl = backendUrl || '';
+      const res = await axios.get(`${baseUrl}/api/schedules`);
       setSchedules(res.data || []);
     } catch (err) {
       console.error(err);
@@ -26,7 +27,8 @@ export default function ScheduleManager() {
   const handleAddSchedule = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/api/schedules', {
+      const baseUrl = backendUrl || '';
+      await axios.post(`${baseUrl}/api/schedules`, {
         deviceId: 'nodemcu_home_1',
         channel: parseInt(channel, 10),
         timeCron: scheduleType === 'time' ? timeStr : null,
@@ -40,8 +42,11 @@ export default function ScheduleManager() {
   };
 
   const handleDelete = async (id) => {
+    setSchedules((prev) => prev.filter((s) => s.id !== id));
+
     try {
-      await axios.delete(`/api/schedules/${id}`);
+      const baseUrl = backendUrl || '';
+      await axios.delete(`${baseUrl}/api/schedules/${id}`);
       fetchSchedules();
     } catch (err) {
       console.error(err);

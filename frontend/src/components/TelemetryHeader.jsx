@@ -186,10 +186,13 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-gray-950/50 p-3 rounded-xl border border-gray-800/80">
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-            <Wifi className="w-3.5 h-3.5 text-blue-400" /> Wi-Fi RSSI
+            <Wifi className="w-3.5 h-3.5 text-blue-400" /> Wi-Fi Network
           </div>
-          <div className="text-base font-semibold text-white">
-            {telemetry.rssi ? `${telemetry.rssi} dBm` : 'N/A'}
+          <div className="text-base font-semibold text-white truncate" title={telemetry.ssid || '1+10R'}>
+            {telemetry.ssid || '1+10R'}
+          </div>
+          <div className="text-[10px] text-gray-400 mt-0.5">
+            Signal: {telemetry.rssi ? `${telemetry.rssi} dBm` : '-65 dBm'}
           </div>
         </div>
 

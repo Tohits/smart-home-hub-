@@ -297,6 +297,7 @@ void publishTelemetry() {
 
   doc["id"]              = device_id;
   doc["version"]         = FIRMWARE_VERSION;
+  doc["ssid"]            = WiFi.SSID();
   doc["rssi"]            = WiFi.RSSI();
   doc["ip"]              = WiFi.localIP().toString();
   doc["freeHeap"]        = freeHeap;

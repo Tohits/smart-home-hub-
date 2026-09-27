@@ -78,6 +78,26 @@ if (!dbClient) {
           if (found) found.state = stateVal;
           return { rowCount: 1 };
         }
+        if (s.includes('INSERT INTO SCHEDULES')) {
+          const newSched = {
+            id: params[0],
+            relay_id: params[1],
+            device_id: params[2],
+            channel: params[3],
+            time_cron: params[4],
+            solar_event: params[5],
+            action: params[6],
+            enabled: params[7]
+          };
+          inMemorySchedules.unshift(newSched);
+          return { rowCount: 1 };
+        }
+        if (s.includes('DELETE FROM SCHEDULES')) {
+          const targetId = params[0];
+          const idx = inMemorySchedules.findIndex(sc => sc.id === targetId);
+          if (idx !== -1) inMemorySchedules.splice(idx, 1);
+          return { rowCount: 1 };
+        }
         return { rows: [] };
       },
       exec: async () => {}
