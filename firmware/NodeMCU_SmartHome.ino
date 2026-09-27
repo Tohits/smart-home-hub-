@@ -6,7 +6,6 @@
   - Hardware Reset Button: D7 (Hold 5s to clear Wi-Fi settings)
   - Scheduled Maintenance: Automatic 12-Hour System Reboot with State Memory
   - Flash State Persistence: Relay ON/OFF states saved to LittleFS and restored on boot
-  - Optocoupler Cut-Off: INPUT_PULLUP cut-off on active-LOW 5V relay modules
   - MQTT Broker: HiveMQ Cloud TLS Port 8883
   - Wi-Fi Provisioning: WiFiManager Captive Portal "SmartHome-Setup"
   - Topics: home/{deviceId}/relay/{1-4}/set, home/{deviceId}/relay/{1-4}/state,
@@ -27,6 +26,7 @@
 #include <LittleFS.h>
 #include <time.h>
 
+// Set to true for Active-LOW relay modules, or false for Active-HIGH relay modules
 #define RELAY_ACTIVE_LOW true
 
 #if RELAY_ACTIVE_LOW
@@ -143,7 +143,7 @@ void setup() {
     for (int i = 0; i < NUM_RELAYS; i++) {
       if (t == "home/" + String(device_id) + "/relay/" + String(i + 1) + "/set") {
         msg.toUpperCase();
-        bool turnOn = (msg == "ON");
+        bool turnOn = (msg == "ON" || msg == "1" || msg == "TRUE");
         setRelayHardware(i, turnOn);
         saveRelayStates(); // Save updated state to Flash immediately
         publishRelayState(i);
@@ -193,22 +193,14 @@ void setRelayHardware(int channelIndex, bool turnOn) {
   relayStates[channelIndex] = turnOn;
   int pin = RELAY_PINS[channelIndex];
 
-  #if RELAY_ACTIVE_LOW
-    if (turnOn) {
-      pinMode(pin, OUTPUT);
-      digitalWrite(pin, LOW);     // 0V pulls active-LOW optocoupler ON
-    } else {
-      digitalWrite(pin, HIGH);
-      pinMode(pin, INPUT_PULLUP); // High Impedance cuts off 5V optocoupler completely!
-    }
-  #else
-    pinMode(pin, OUTPUT);
-    digitalWrite(pin, turnOn ? HIGH : LOW);
-  #endif
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, turnOn ? RELAY_ON : RELAY_OFF);
 
   Serial.print(F("[Relay Hardware] Channel "));
   Serial.print(channelIndex + 1);
-  Serial.print(F(" -> "));
+  Serial.print(F(" (Pin "));
+  Serial.print(pin);
+  Serial.print(F(") -> "));
   Serial.println(turnOn ? F("ON") : F("OFF"));
 }
 
