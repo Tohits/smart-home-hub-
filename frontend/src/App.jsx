@@ -15,14 +15,36 @@ const DEFAULT_RELAYS = [
   { id: 'nodemcu_home_1_ch4', channel: 4, name: 'Night Lamp', state: false, icon: 'moon' }
 ];
 
+const getSavedRelays = () => {
+  try {
+    const saved = localStorage.getItem('smarthome_relays');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length === 4) return parsed;
+    }
+  } catch (e) {
+    console.warn('localStorage read notice:', e);
+  }
+  return DEFAULT_RELAYS;
+};
+
 export default function App() {
   const [deviceStatus, setDeviceStatus] = useState('offline');
   const [telemetry, setTelemetry] = useState({ id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 });
-  const [relays, setRelays] = useState(DEFAULT_RELAYS);
+  const [relays, setRelays] = useState(getSavedRelays);
   const [logs, setLogs] = useState([]);
   const [otaStatus, setOtaStatus] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Persist relay states to localStorage whenever relays state changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('smarthome_relays', JSON.stringify(relays));
+    } catch (e) {
+      console.warn('localStorage save notice:', e);
+    }
+  }, [relays]);
 
   useEffect(() => {
     fetchInitialData();
