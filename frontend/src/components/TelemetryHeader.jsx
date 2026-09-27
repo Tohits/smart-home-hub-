@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Cpu, Clock, ShieldCheck, BellRing, RefreshCw, Download } from 'lucide-react';
+import { Wifi, Cpu, Clock, ShieldCheck, BellRing, RefreshCw, Download, Timer } from 'lucide-react';
 import axios from 'axios';
 
 export default function TelemetryHeader({ status, telemetry, isConnected, onRestart }) {
@@ -67,6 +67,20 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
     return outputArray;
   };
 
+  const formatTimeRemaining = (seconds) => {
+    if (seconds === undefined || seconds === null) {
+      // Default initial calculation before first telemetry message
+      const defaultSec = 12 * 3600 - (telemetry.uptime || 0);
+      const hrs = Math.max(0, Math.floor(defaultSec / 3600));
+      const mins = Math.max(0, Math.floor((defaultSec % 3600) / 60));
+      return `${hrs}h ${mins}m`;
+    }
+    if (seconds <= 0) return 'Rebooting...';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hrs}h ${mins}m`;
+  };
+
   const isOnline = status === 'online';
 
   return (
@@ -117,7 +131,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-gray-950/50 p-3 rounded-xl border border-gray-800/80">
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
             <Wifi className="w-3.5 h-3.5 text-blue-400" /> Wi-Fi RSSI
@@ -147,7 +161,16 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
 
         <div className="bg-gray-950/50 p-3 rounded-xl border border-gray-800/80">
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" /> Real-time Link
+            <Timer className="w-3.5 h-3.5 text-amber-400" /> Next Reboot
+          </div>
+          <div className="text-base font-semibold text-amber-400">
+            {formatTimeRemaining(telemetry.nextRebootIn)}
+          </div>
+        </div>
+
+        <div className="bg-gray-950/50 p-3 rounded-xl border border-gray-800/80">
+          <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> Real-time Link
           </div>
           <div className={`text-base font-semibold ${isConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
             {isConnected ? 'WebSocket Active' : 'Connecting...'}

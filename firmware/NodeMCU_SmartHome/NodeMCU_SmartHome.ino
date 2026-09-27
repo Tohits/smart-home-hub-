@@ -4,6 +4,8 @@
   =============================================================================
   - Relay Pin Mappings: Relay 1 (D1), Relay 2 (D2), Relay 3 (D5), Relay 4 (D6)
   - Hardware Reset Button: D7 (Hold 5s to clear Wi-Fi settings)
+  - Scheduled Maintenance: Automatic 12-Hour System Reboot with State Memory
+  - Flash State Persistence: Relay ON/OFF states saved to LittleFS and restored on boot
   - MQTT Broker: HiveMQ Cloud TLS Port 8883
   - Wi-Fi Provisioning: WiFiManager Captive Portal "SmartHome-Setup"
   - Topics: home/{deviceId}/relay/{1-4}/set, home/{deviceId}/relay/{1-4}/state,
@@ -38,13 +40,16 @@ const int NUM_RELAYS = 4;
 const int RELAY_PINS[NUM_RELAYS] = { D1, D2, D5, D6 };
 const int RESET_PIN              = D7;
 
+// Auto Reboot Every 12 Hours (12 * 60 * 60 * 1000 ms)
+const unsigned long AUTO_REBOOT_INTERVAL = 12UL * 60UL * 60UL * 1000UL;
+
 bool relayStates[NUM_RELAYS] = { false, false, false, false };
 
 char device_id[32]   = "nodemcu_home_1";
 char mqtt_server[64] = "93bad3def29641e399de9a7b9c676613.s1.eu.hivemq.cloud";
 char mqtt_port[6]    = "8883";
 char mqtt_user[32]    = "tohits";
-char mqtt_pass[64]    = "YOUR_HIVEMQ_PASSWORD";
+char mqtt_pass[64]    = "toh123@TOH";
 
 const char* FIRMWARE_VERSION = "1.5.0";
 
@@ -72,6 +77,8 @@ unsigned long resetPressTime = 0;
 bool isResetPressed          = false;
 
 void initializeSafeRelays();
+void loadRelayStates();
+void saveRelayStates();
 void executeSafeRestart();
 void checkResetButton();
 void loadConfig();
@@ -91,7 +98,7 @@ void setup() {
   Serial.println(F("🚀 NodeMCU ESP8266 Smart Home Engine Starting..."));
   Serial.println(F("================================================="));
 
-  // STEP 1: Mandatory Safe Relay Initialization (Glitch Elimination)
+  // STEP 1: Load Saved Relay Memory & Set Pins
   initializeSafeRelays();
   pinMode(RESET_PIN, INPUT_PULLUP);
 
@@ -137,6 +144,7 @@ void setup() {
         bool turnOn = (msg == "ON");
         relayStates[i] = turnOn;
         digitalWrite(RELAY_PINS[i], turnOn ? RELAY_ON : RELAY_OFF);
+        saveRelayStates(); // Save updated state to Flash immediately
         publishRelayState(i);
         break;
       }
@@ -149,6 +157,13 @@ void loop() {
 
   // Feed Hardware Watchdog Timer
   ESP.wdtFeed();
+
+  // Automatic 12-Hour Reboot Engine with State Memory
+  if (millis() > AUTO_REBOOT_INTERVAL) {
+    Serial.println(F("[AUTO-REBOOT] 12-Hour uptime reached. Rebooting safely..."));
+    executeSafeRestart();
+    return;
+  }
 
   // Check physical reset button (Hold D7 for 5s to clear Wi-Fi)
   checkResetButton();
@@ -182,6 +197,7 @@ void checkResetButton() {
       wm.resetSettings();
       if (LittleFS.begin()) {
         LittleFS.remove("/config.json");
+        LittleFS.remove("/relay_states.json");
       }
       delay(500);
       ESP.restart();
@@ -192,20 +208,52 @@ void checkResetButton() {
 }
 
 void initializeSafeRelays() {
+  loadRelayStates(); // Restore saved relay states from Flash memory
+
   for (int i = 0; i < NUM_RELAYS; i++) {
-    digitalWrite(RELAY_PINS[i], RELAY_OFF);
     pinMode(RELAY_PINS[i], OUTPUT);
-    digitalWrite(RELAY_PINS[i], RELAY_OFF);
-    relayStates[i] = false;
+    digitalWrite(RELAY_PINS[i], relayStates[i] ? RELAY_ON : RELAY_OFF);
+  }
+}
+
+void loadRelayStates() {
+  if (LittleFS.begin()) {
+    if (LittleFS.exists("/relay_states.json")) {
+      File f = LittleFS.open("/relay_states.json", "r");
+      if (f) {
+        StaticJsonDocument<256> doc;
+        DeserializationError err = deserializeJson(doc, f);
+        if (!err) {
+          JsonArray arr = doc["relays"];
+          for (int i = 0; i < NUM_RELAYS && i < arr.size(); i++) {
+            relayStates[i] = arr[i].as<bool>();
+          }
+          Serial.println(F("[PERSISTENCE] Restored relay states from Flash memory!"));
+        }
+        f.close();
+      }
+    }
+  }
+}
+
+void saveRelayStates() {
+  if (LittleFS.begin()) {
+    File f = LittleFS.open("/relay_states.json", "w");
+    if (f) {
+      StaticJsonDocument<256> doc;
+      JsonArray arr = doc.createNestedArray("relays");
+      for (int i = 0; i < NUM_RELAYS; i++) {
+        arr.add(relayStates[i]);
+      }
+      serializeJson(doc, f);
+      f.close();
+      Serial.println(F("[PERSISTENCE] Saved relay states to Flash memory."));
+    }
   }
 }
 
 void executeSafeRestart() {
-  for (int i = 0; i < NUM_RELAYS; i++) {
-    digitalWrite(RELAY_PINS[i], RELAY_OFF);
-    relayStates[i] = false;
-    publishRelayState(i);
-  }
+  saveRelayStates(); // Ensure states are saved before restart
   mqttClient.disconnect();
   delay(1000);
   ESP.restart();
@@ -255,6 +303,7 @@ void publishTelemetry() {
   doc["lowMemWarning"]   = (freeHeap < 12000);
   doc["freeSketchSpace"] = ESP.getFreeSketchSpace();
   doc["uptime"]          = millis() / 1000;
+  doc["nextRebootIn"]    = (AUTO_REBOOT_INTERVAL > millis()) ? (AUTO_REBOOT_INTERVAL - millis()) / 1000 : 0;
 
   char buffer[512];
   serializeJson(doc, buffer);
@@ -309,7 +358,11 @@ void loadConfig() {
           strncpy(mqtt_server, doc["mqtt_server"] | mqtt_server, sizeof(mqtt_server));
           strncpy(mqtt_port, doc["mqtt_port"] | mqtt_port, sizeof(mqtt_port));
           strncpy(mqtt_user, doc["mqtt_user"] | mqtt_user, sizeof(mqtt_user));
-          strncpy(mqtt_pass, doc["mqtt_pass"] | mqtt_pass, sizeof(mqtt_pass));
+
+          const char* savedPass = doc["mqtt_pass"];
+          if (savedPass && strlen(savedPass) > 0 && strcmp(savedPass, "YOUR_HIVEMQ_PASSWORD") != 0) {
+            strncpy(mqtt_pass, savedPass, sizeof(mqtt_pass));
+          }
         }
         configFile.close();
       }
