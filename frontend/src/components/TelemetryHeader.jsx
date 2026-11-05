@@ -115,7 +115,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
       // Trigger test notification
       await axios.post(`${baseUrl}/api/push/test`);
 
-      alert('🎉 Success! Web Push Notifications Enabled & Test Alert Sent!');
+      alert('🎉 Success! Web Push Notifications Enabled & Test Alert Sent to your phone!');
     } catch (err) {
       console.error(err);
       alert('Push Setup Diagnostic Error: ' + (err.name || 'Error') + ' - ' + err.message);
@@ -210,17 +210,19 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
             Install App
           </button>
 
+          {/* Interactive Always-Clickable Push Alerts Button */}
           <button
             onClick={handleSubscribePush}
-            disabled={pushSubscribed || subscribing}
-            className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition ${
+            disabled={subscribing}
+            className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition cursor-pointer ${
               pushSubscribed
-                ? 'bg-blue-500/10 text-blue-600 border border-blue-500/30 cursor-default'
+                ? 'bg-blue-600/20 text-blue-400 border border-blue-500/40 hover:bg-blue-600/30'
                 : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20'
             }`}
+            title="Click to enable or test push notification"
           >
             <BellRing className="w-3.5 h-3.5" />
-            {pushSubscribed ? 'Alerts On' : subscribing ? 'Enabling...' : 'Push Alerts'}
+            {subscribing ? 'Enabling...' : pushSubscribed ? 'Alerts On (Test 🔔)' : 'Push Alerts'}
           </button>
 
           <button
