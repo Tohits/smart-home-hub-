@@ -18,19 +18,6 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
     return () => clearInterval(timer);
   }, []);
 
-  // Auto-detect existing Web Push subscription on mount
-  useEffect(() => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.pushManager.getSubscription().then((sub) => {
-          if (sub) {
-            setPushSubscribed(true);
-          }
-        });
-      }).catch(() => {});
-    }
-  }, []);
-
   useEffect(() => {
     setInputUrl(backendUrl || '');
   }, [backendUrl]);
@@ -42,6 +29,21 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // Auto-detect existing Web Push subscription on mount
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg) {
+          reg.pushManager.getSubscription().then((sub) => {
+            if (sub) {
+              setPushSubscribed(true);
+            }
+          });
+        }
+      }).catch(() => {});
+    }
   }, []);
 
   const handleSaveUrl = (e) => {
@@ -64,17 +66,22 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
 
   const handleSubscribePush = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Push notifications are not supported by your browser.');
+      alert('Push notifications are not supported by your browser or iOS version.');
       return;
     }
 
     try {
       setSubscribing(true);
 
-      // Explicitly request browser notification permission
+      // Check if browser permission is blocked
+      if (Notification.permission === 'denied') {
+        alert('Notification permission is currently BLOCKED in your browser. Please tap the Lock icon 🔒 in your browser address bar and set Notifications to "Allow".');
+        return;
+      }
+
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        alert('Notification permission was denied. Please allow notifications in your browser settings.');
+        alert('Notification permission was not granted.');
         return;
       }
 
@@ -86,10 +93,16 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
         throw new Error('VAPID public key could not be retrieved from server.');
       }
 
-      const reg = await navigator.serviceWorker.ready;
-      const existingSub = await reg.pushManager.getSubscription();
-      if (existingSub) {
-        await existingSub.unsubscribe();
+      // Register / get Service Worker registration
+      const reg = await navigator.serviceWorker.register('/service-worker.js');
+
+      try {
+        const existingSub = await reg.pushManager.getSubscription();
+        if (existingSub) {
+          await existingSub.unsubscribe();
+        }
+      } catch (e) {
+        console.warn('Unsubscribe notice:', e);
       }
 
       const sub = await reg.pushManager.subscribe({
@@ -103,7 +116,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
       // Trigger immediate test notification
       await axios.post(`${baseUrl}/api/push/test`);
 
-      alert('Web Push Notifications enabled! Test notification sent to your device.');
+      alert('🎉 Push Notifications Enabled! Test alert sent to your device.');
     } catch (err) {
       console.error(err);
       alert('Push subscription notice: ' + (err.response?.data?.error || err.message));
