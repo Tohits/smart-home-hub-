@@ -18,6 +18,19 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
     return () => clearInterval(timer);
   }, []);
 
+  // Auto-detect existing Web Push subscription on mount
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          if (sub) {
+            setPushSubscribed(true);
+          }
+        });
+      }).catch(() => {});
+    }
+  }, []);
+
   useEffect(() => {
     setInputUrl(backendUrl || '');
   }, [backendUrl]);

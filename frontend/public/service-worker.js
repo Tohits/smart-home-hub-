@@ -61,9 +61,9 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push Notification Handler
+// Push Notification Handler with Spam Prevention (Unique Tag & Renotify)
 self.addEventListener('push', (event) => {
-  let data = { title: 'Smart Home Alert', body: 'New alert from Home Hub', icon: '/assets/icon-192.png' };
+  let data = { title: 'Smart Home Hub', body: 'New alert from your Smart Home Hub', icon: '/assets/icon-192.png' };
   try {
     if (event.data) {
       data = event.data.json();
@@ -72,12 +72,19 @@ self.addEventListener('push', (event) => {
     console.error('[ServiceWorker] Push data parse error', e);
   }
 
+  const notificationTag = 'shh-alert-' + Date.now();
+
   const options = {
     body: data.body,
     icon: data.icon || '/assets/icon-192.png',
     badge: '/assets/icon-192.png',
-    vibrate: [200, 100, 200],
-    data: { timestamp: data.timestamp || Date.now() }
+    tag: notificationTag,
+    renotify: true,
+    vibrate: [150, 50, 150],
+    data: { timestamp: data.timestamp || Date.now() },
+    actions: [
+      { action: 'open', title: 'Open Dashboard 🏠' }
+    ]
   };
 
   event.waitUntil(
