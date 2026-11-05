@@ -30,6 +30,7 @@ const getSavedRelays = () => {
 
 export default function App() {
   const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || RENDER_BACKEND_URL);
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto'); // 'auto', 'day', 'night'
   const [deviceStatus, setDeviceStatus] = useState('offline');
   const [telemetry, setTelemetry] = useState({ id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 });
   const [relays, setRelays] = useState(getSavedRelays);
@@ -37,6 +38,21 @@ export default function App() {
   const [otaStatus, setOtaStatus] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Determine if Day Mode is active
+  const isDayMode = (() => {
+    if (themeMode === 'day') return true;
+    if (themeMode === 'night') return false;
+    // Auto mode: Day between 6:00 AM and 6:00 PM (18:00)
+    const hour = new Date().getHours();
+    return hour >= 6 && hour < 18;
+  })();
+
+  const handleToggleTheme = () => {
+    const nextMode = isDayMode ? 'night' : 'day';
+    setThemeMode(nextMode);
+    localStorage.setItem('smarthome_theme_mode', nextMode);
+  };
 
   const handleSaveBackendUrl = (newUrl) => {
     let cleanUrl = newUrl;
@@ -50,7 +66,13 @@ export default function App() {
     localStorage.setItem('smarthome_relays', JSON.stringify(relays));
   }, [relays]);
 
-  // Automatic background polling every 8 seconds for 100% status freshness
+  // Dynamic Page Background Color
+  useEffect(() => {
+    document.body.style.backgroundColor = isDayMode ? '#f8fafc' : '#0b0f19';
+    document.body.style.color = isDayMode ? '#0f172a' : '#f3f4f6';
+  }, [isDayMode]);
+
+  // Automatic background polling every 8 seconds
   useEffect(() => {
     fetchInitialData();
 
@@ -114,7 +136,6 @@ export default function App() {
     try {
       const baseUrl = backendUrl || RENDER_BACKEND_URL;
 
-      // Fetch live device status & telemetry
       const statusRes = await axios.get(`${baseUrl}/api/system/status`);
       if (statusRes.data) {
         if (statusRes.data.status) setDeviceStatus(statusRes.data.status);
@@ -172,7 +193,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-gray-100 p-4 md:p-8 max-w-6xl mx-auto">
+    <div className={`min-h-screen p-4 md:p-8 max-w-6xl mx-auto transition-colors duration-300 ${
+      isDayMode ? 'bg-slate-50 text-slate-900' : 'bg-[#0b0f19] text-gray-100'
+    }`}>
       {/* Telemetry Header */}
       <TelemetryHeader
         status={deviceStatus}
@@ -181,16 +204,20 @@ export default function App() {
         onRestart={handleRebootDevice}
         backendUrl={backendUrl}
         onSaveBackendUrl={handleSaveBackendUrl}
+        isDayMode={isDayMode}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-2 mb-6 border-b border-gray-800 pb-3 overflow-x-auto">
+      <div className={`flex items-center gap-2 mb-6 border-b pb-3 overflow-x-auto ${
+        isDayMode ? 'border-slate-200' : 'border-gray-800'
+      }`}>
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex items-center gap-2 text-xs font-semibold py-2 px-4 rounded-xl transition ${
             activeTab === 'dashboard'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+              : isDayMode ? 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200' : 'bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-800'
           }`}
         >
           <LayoutDashboard className="w-4 h-4" /> Relays & Controls
@@ -201,7 +228,7 @@ export default function App() {
           className={`flex items-center gap-2 text-xs font-semibold py-2 px-4 rounded-xl transition ${
             activeTab === 'automation'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+              : isDayMode ? 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200' : 'bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-800'
           }`}
         >
           <Calendar className="w-4 h-4" /> Schedules
@@ -212,7 +239,7 @@ export default function App() {
           className={`flex items-center gap-2 text-xs font-semibold py-2 px-4 rounded-xl transition ${
             activeTab === 'ota'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+              : isDayMode ? 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200' : 'bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-800'
           }`}
         >
           <DownloadCloud className="w-4 h-4" /> WAN OTA Manager
@@ -223,7 +250,7 @@ export default function App() {
           className={`flex items-center gap-2 text-xs font-semibold py-2 px-4 rounded-xl transition ${
             activeTab === 'logs'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+              : isDayMode ? 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200' : 'bg-gray-900 text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-gray-800'
           }`}
         >
           <Activity className="w-4 h-4" /> Activity Logs
@@ -240,6 +267,7 @@ export default function App() {
               onToggle={handleToggleRelay}
               onUpdateRelay={handleUpdateRelayMetadata}
               backendUrl={backendUrl}
+              isDayMode={isDayMode}
             />
           ))}
         </div>
@@ -250,18 +278,26 @@ export default function App() {
       {activeTab === 'ota' && <OtaManager otaStatus={otaStatus} />}
 
       {activeTab === 'logs' && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-          <h2 className="text-lg font-semibold text-white mb-4">Activity Logs</h2>
+        <div className={`border rounded-2xl p-5 shadow-xl ${
+          isDayMode ? 'bg-white border-slate-200' : 'bg-gray-900 border-gray-800'
+        }`}>
+          <h2 className={`text-lg font-semibold mb-4 ${isDayMode ? 'text-slate-900' : 'text-white'}`}>
+            Activity Logs
+          </h2>
           <div className="space-y-2">
             {logs.length === 0 ? (
-              <p className="text-xs text-gray-500 py-4 text-center">No logs recorded yet.</p>
+              <p className={`text-xs py-4 text-center ${isDayMode ? 'text-slate-400' : 'text-gray-500'}`}>No logs recorded yet.</p>
             ) : (
               logs.map((log) => (
-                <div key={log.id} className="bg-gray-950/40 p-3 rounded-xl border border-gray-800/60 flex items-center justify-between text-xs">
+                <div key={log.id} className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+                  isDayMode ? 'bg-slate-50 border-slate-200' : 'bg-gray-950/40 border-gray-800/60'
+                }`}>
                   <div>
-                    <span className="font-semibold text-blue-400">[{log.event_type}]</span> {log.details}
+                    <span className="font-semibold text-blue-500">[{log.event_type}]</span> {log.details}
                   </div>
-                  <span className="text-gray-500">{new Date(log.created_at || Date.now()).toLocaleTimeString()}</span>
+                  <span className={isDayMode ? 'text-slate-400' : 'text-gray-500'}>
+                    {new Date(log.created_at || Date.now()).toLocaleTimeString()}
+                  </span>
                 </div>
               ))
             )}
