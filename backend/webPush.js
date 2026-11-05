@@ -5,19 +5,35 @@ const db = require('./database');
 
 const keysFilePath = path.join(__dirname, 'vapid_keys.json');
 
-function loadOrGenerateVapidKeys() {
-  // Check persistent file on disk first
+function isValidVapidPublicKey(key) {
+  if (!key || typeof key !== 'string') return false;
+  if (key.length !== 87) return false;
+  if (key.includes('+') || key.includes('/') || key.includes('=')) return false;
+  if (!key.startsWith('B')) return false;
+  return true;
+}
+
+function getValidVapidKeys() {
+  const envPublic = process.env.VAPID_PUBLIC_KEY;
+  const envPrivate = process.env.VAPID_PRIVATE_KEY;
+
+  // 1. Check if Render env vars are valid 87-char keys
+  if (isValidVapidPublicKey(envPublic) && envPrivate && envPrivate.length >= 40) {
+    return { publicKey: envPublic, privateKey: envPrivate };
+  }
+
+  // 2. Check persistent disk file
   if (fs.existsSync(keysFilePath)) {
     try {
       const data = JSON.parse(fs.readFileSync(keysFilePath, 'utf8'));
-      if (data.publicKey && data.privateKey && data.publicKey.length >= 80) {
+      if (isValidVapidPublicKey(data.publicKey) && data.privateKey) {
         return data;
       }
     } catch (e) {}
   }
 
-  // Generate fresh valid P-256 VAPID keypair
-  console.log('[WebPush] Generating fresh cryptographically valid VAPID keypair...');
+  // 3. Generate fresh valid P-256 VAPID keypair
+  console.log('[WebPush] Generating fresh 87-char valid VAPID keypair...');
   const keys = webpush.generateVAPIDKeys();
   try {
     fs.writeFileSync(keysFilePath, JSON.stringify(keys, null, 2));
@@ -28,7 +44,7 @@ function loadOrGenerateVapidKeys() {
   return keys;
 }
 
-const activeKeys = loadOrGenerateVapidKeys();
+const activeKeys = getValidVapidKeys();
 const vapidPublic = activeKeys.publicKey;
 const vapidPrivate = activeKeys.privateKey;
 
@@ -38,7 +54,7 @@ try {
     vapidPublic,
     vapidPrivate
   );
-  console.log('[WebPush] VAPID details set successfully. Public key length:', vapidPublic.length);
+  console.log('[WebPush] VAPID active public key (87 chars, starts with B):', vapidPublic);
 } catch (err) {
   console.error('[WebPush] VAPID configuration notice:', err.message);
 }
