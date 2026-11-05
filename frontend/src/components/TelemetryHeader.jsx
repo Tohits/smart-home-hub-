@@ -93,11 +93,8 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
   };
 
   const formatTimeRemaining = (seconds) => {
-    if (seconds === undefined || seconds === null) {
-      const defaultSec = 12 * 3600 - (telemetry.uptime || 0);
-      const hrs = Math.max(0, Math.floor(defaultSec / 3600));
-      const mins = Math.max(0, Math.floor((defaultSec % 3600) / 60));
-      return `${hrs}h ${mins}m`;
+    if (!isOnline || seconds === undefined || seconds === null) {
+      return 'N/A';
     }
     if (seconds <= 0) return 'Rebooting...';
     const hrs = Math.floor(seconds / 3600);
@@ -119,7 +116,9 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
               {isOnline ? '● Online' : '○ Offline'}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-1">NodeMCU ESP8266 v1.5.0 • Device ID: {telemetry.id || 'nodemcu_home_1'}</p>
+          <p className="text-xs text-gray-400 mt-1">
+            NodeMCU ESP8266 v1.5.0 • Device ID: {telemetry.id || 'nodemcu_home_1'}
+          </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -189,15 +188,16 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {/* Wi-Fi Network SSID Card */}
         <div className="bg-gray-950/50 p-3 rounded-xl border border-gray-800/80">
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
             <Wifi className="w-3.5 h-3.5 text-blue-400" /> Wi-Fi Network
           </div>
-          <div className="text-base font-semibold text-white truncate" title={telemetry.ssid || '1+10R'}>
-            {telemetry.ssid || '1+10R'}
+          <div className="text-base font-semibold text-white truncate">
+            {isOnline && telemetry.ssid ? telemetry.ssid : 'Disconnected'}
           </div>
           <div className="text-[10px] text-gray-400 mt-0.5">
-            Signal: {telemetry.rssi ? `${telemetry.rssi} dBm` : '-65 dBm'}
+            {isOnline && telemetry.rssi ? `Signal: ${telemetry.rssi} dBm` : 'No Signal'}
           </div>
         </div>
 
@@ -206,7 +206,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
             <Cpu className="w-3.5 h-3.5 text-emerald-400" /> Free Heap
           </div>
           <div className="text-base font-semibold text-white">
-            {telemetry.freeHeap ? `${(telemetry.freeHeap / 1024).toFixed(1)} KB` : 'N/A'}
+            {isOnline && telemetry.freeHeap ? `${(telemetry.freeHeap / 1024).toFixed(1)} KB` : 'N/A'}
           </div>
         </div>
 
@@ -215,7 +215,7 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
             <Clock className="w-3.5 h-3.5 text-purple-400" /> Uptime
           </div>
           <div className="text-base font-semibold text-white">
-            {telemetry.uptime ? `${Math.floor(telemetry.uptime / 60)} mins` : 'N/A'}
+            {isOnline && telemetry.uptime ? `${Math.floor(telemetry.uptime / 60)} mins` : 'N/A'}
           </div>
         </div>
 
