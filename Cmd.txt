@@ -1,0 +1,81 @@
+Counting objects: 100% (9/9), done.
+Delta compression using up to 4 threads
+Compressing objects: 100% (5/5), done.
+Writing objects: 100% (5/5), 809 bytes | 404.00 KiB/s, done.
+Total 5 (delta 3), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (3/3), completed with 3 local objects.
+To https://github.com/Tohits/smart-home-hub-.git
+   91a4b64..b4ea400  main -> main
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git add .
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git commit -m "Add Day and Night theme engine with automatic time-based switching and sun/moon toggle"
+[main 90456b1] Add Day and Night theme engine with automatic time-based switching and sun/moon toggle
+ 3 files changed, 140 insertions(+), 66 deletions(-)
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git push origin main
+Enumerating objects: 15, done.
+Counting objects: 100% (15/15), done.
+Delta compression using up to 4 threads
+Compressing objects: 100% (8/8), done.
+Writing objects: 100% (8/8), 2.86 KiB | 293.00 KiB/s, done.
+Total 8 (delta 6), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (6/6), completed with 6 local objects.
+To https://github.com/Tohits/smart-home-hub-.git
+   b4ea400..90456b1  main -> main
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git add .
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git commit -m "Fix Tailwind CSS directives import for Day Mode styling"
+[main f9dce56] Fix Tailwind CSS directives import for Day Mode styling
+ 2 files changed, 13 insertions(+), 9 deletions(-)
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git push origin main
+Enumerating objects: 11, done.
+Counting objects: 100% (11/11), done.
+Delta compression using up to 4 threads
+Compressing objects: 100% (6/6), done.
+Writing objects: 100% (6/6), 724 bytes | 362.00 KiB/s, done.
+Total 6 (delta 4), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (4/4), completed with 4 local objects.
+To https://github.com/Tohits/smart-home-hub-.git
+   90456b1..f9dce56  main -> main
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git add .
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git commit -m "Enable automatic day/night theme switching based on local time with 3-way toggle cycle"
+[main 0460a91] Enable automatic day/night theme switching based on local time with 3-way toggle cycle
+ 2 files changed, 24 insertions(+), 9 deletions(-)
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git push origin main
+Enumerating objects: 13, done.
+Counting objects: 100% (13/13), done.
+Delta compression using up to 4 threads
+Compressing objects: 100% (7/7), done.
+Writing objects: 100% (7/7), 1.08 KiB | 551.00 KiB/s, done.
+Total 7 (delta 5), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (5/5), completed with 5 local objects.
+To https://github.com/Tohits/smart-home-hub-.git
+   f9dce56..0460a91  main -> main
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git add DOCUMENTATION.md
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git commit -m "Add complete production system documentation DOCUMENTATION.md"
+[main baa2edb] Add complete production system documentation DOCUMENTATION.md
+ 1 file changed, 173 insertions(+)
+ create mode 100644 DOCUMENTATION.md
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git push origin main
+Enumerating objects: 4, done.
+Counting objects: 100% (4/4), done.
+Delta compression using up to 4 threads
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 3.97 KiB | 1016.00 KiB/s, done.
+Total 3 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (1/1), completed with 1 local object.
+To https://github.com/Tohits/smart-home-hub-.git
+   0460a91..baa2edb  main -> main
+PS C:\Users\Tohids\Desktop\github\smart-home-hub>
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git add .
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git commit -m "Fix scheduler UTC to IST timezone conversion and database state sync on schedule trigger"
+[main 4041776] Fix scheduler UTC to IST timezone conversion and database state sync on schedule trigger
+ 1 file changed, 36 insertions(+), 13 deletions(-)
+PS C:\Users\Tohids\Desktop\github\smart-home-hub> git push origin main
+Enumerating objects: 7, done.
+Counting objects: 100% (7/7), done.
+Delta compression using up to 4 threads
+Compressing objects: 100% (4/4), done.
+Writing objects: 100% (4/4), 1.11 KiB | 94.00 KiB/s, done.
+Total 4 (delta 3), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (3/3), completed with 3 local objects.
+To https://github.com/Tohits/smart-home-hub-.git
+   baa2edb..4041776  main -> main
+PS C:\Users\Tohids\Desktop\github\smart-home-hub>
