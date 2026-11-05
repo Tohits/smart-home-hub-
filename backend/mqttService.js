@@ -75,6 +75,7 @@ function initMqtt(io) {
       } else if (subType === 'relay' && parts[4] === 'state') {
         const channel = parseInt(parts[3], 10);
         const stateBool = (message.toUpperCase() === 'ON');
+        const prevState = deviceState.relays[channel];
         deviceState.relays[channel] = stateBool;
 
         // Sync with DB
@@ -86,6 +87,24 @@ function initMqtt(io) {
 
         if (ioInstance) {
           ioInstance.emit('relay:update', { deviceId, channel, state: stateBool });
+        }
+
+        // Send VAPID Web Push Notification on Relay State Change
+        if (prevState !== undefined && prevState !== stateBool) {
+          try {
+            const relayRes = await db.query('SELECT name FROM relays WHERE device_id = $1 AND channel = $2', [deviceId, channel]);
+            const relayName = (relayRes.rows && relayRes.rows[0]) ? relayRes.rows[0].name : `Relay Channel ${channel}`;
+            const actionText = stateBool ? 'turned ON 🟢' : 'turned OFF 🔴';
+
+            webPush.sendNotificationToAll(
+              '⚡ Smart Home Hub Alert',
+              `${relayName} (Ch ${channel}) ${actionText}`,
+              '/assets/icon-192.png',
+              true
+            );
+          } catch (e) {
+            console.error('[WebPush] Relay notification error:', e.message);
+          }
         }
       } else if (subType === 'ota' && parts[3] === 'status') {
         if (ioInstance) ioInstance.emit('ota:status', { deviceId, status: message });
