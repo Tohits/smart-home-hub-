@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Wifi, Cpu, Clock, BellRing, RefreshCw, Download, Timer, Settings, CalendarClock, Sun, Moon } from 'lucide-react';
 import axios from 'axios';
 
-export default function TelemetryHeader({ status, telemetry, isConnected, onRestart, backendUrl, onSaveBackendUrl, isDayMode, onToggleTheme }) {
+export default function TelemetryHeader({ status, telemetry, isConnected, onRestart, backendUrl, onSaveBackendUrl, isDayMode, themeMode, onToggleTheme }) {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -147,10 +147,10 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
                 ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200'
                 : 'bg-gray-800 text-amber-400 border-gray-700 hover:bg-gray-700'
             }`}
-            title="Toggle Day / Night Mode"
+            title="Cycle Theme: Auto -> Day -> Night"
           >
             {isDayMode ? <Sun className="w-3.5 h-3.5 text-amber-600" /> : <Moon className="w-3.5 h-3.5 text-amber-400" />}
-            {isDayMode ? 'Day Mode' : 'Night Mode'}
+            {themeMode === 'auto' ? `Auto (${isDayMode ? 'Day' : 'Night'})` : isDayMode ? 'Day Mode' : 'Night Mode'}
           </button>
 
           <button

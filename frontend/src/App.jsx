@@ -30,7 +30,8 @@ const getSavedRelays = () => {
 
 export default function App() {
   const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || RENDER_BACKEND_URL);
-  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto');
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto'); // 'auto', 'day', 'night'
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
   const [deviceStatus, setDeviceStatus] = useState('offline');
   const [telemetry, setTelemetry] = useState({ id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 });
   const [relays, setRelays] = useState(getSavedRelays);
@@ -39,15 +40,28 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  // Auto time check every 1 minute for automatic theme transition
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHour(new Date().getHours());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Determine if Day Mode is active
   const isDayMode = (() => {
     if (themeMode === 'day') return true;
     if (themeMode === 'night') return false;
-    const hour = new Date().getHours();
-    return hour >= 6 && hour < 18;
+    // Auto mode: Day between 6:00 AM (6) and 6:00 PM (18)
+    return currentHour >= 6 && currentHour < 18;
   })();
 
-  const handleToggleTheme = () => {
-    const nextMode = isDayMode ? 'night' : 'day';
+  const handleCycleTheme = () => {
+    let nextMode = 'auto';
+    if (themeMode === 'auto') nextMode = 'day';
+    else if (themeMode === 'day') nextMode = 'night';
+    else nextMode = 'auto';
+
     setThemeMode(nextMode);
     localStorage.setItem('smarthome_theme_mode', nextMode);
   };
@@ -207,7 +221,8 @@ export default function App() {
         backendUrl={backendUrl}
         onSaveBackendUrl={handleSaveBackendUrl}
         isDayMode={isDayMode}
-        onToggleTheme={handleToggleTheme}
+        themeMode={themeMode}
+        onToggleTheme={handleCycleTheme}
       />
 
       {/* Tab Navigation */}
