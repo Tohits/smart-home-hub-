@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Cpu, Clock, ShieldCheck, BellRing, RefreshCw, Download, Timer, Settings } from 'lucide-react';
+import { Wifi, Cpu, Clock, BellRing, RefreshCw, Download, Timer, Settings, CalendarClock } from 'lucide-react';
 import axios from 'axios';
 
 export default function TelemetryHeader({ status, telemetry, isConnected, onRestart, backendUrl, onSaveBackendUrl }) {
@@ -8,6 +8,15 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [inputUrl, setInputUrl] = useState(backendUrl || '');
+  const [clockTime, setClockTime] = useState(new Date());
+
+  // Live 1-second Digital Clock
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setClockTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setInputUrl(backendUrl || '');
@@ -228,12 +237,16 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
           </div>
         </div>
 
+        {/* Live Date & Clock Card */}
         <div className="bg-gray-950/50 p-3 rounded-xl border border-gray-800/80">
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> Real-time Link
+            <CalendarClock className="w-3.5 h-3.5 text-blue-400" /> Date & Time
           </div>
-          <div className={`text-base font-semibold ${isConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
-            {isConnected ? 'WebSocket Active' : 'Connecting...'}
+          <div className="text-base font-semibold text-white">
+            {clockTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </div>
+          <div className="text-[10px] text-gray-400 mt-0.5">
+            {clockTime.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
         </div>
       </div>
