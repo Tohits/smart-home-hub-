@@ -65,23 +65,22 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
   };
 
   const handleSubscribePush = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Push notifications are not supported by your browser or iOS version.');
+    if (!('serviceWorker' in navigator)) {
+      alert('Service Worker is not supported by your browser.');
+      return;
+    }
+
+    if (!('PushManager' in window)) {
+      alert('PushManager is not supported by your browser or OS (iOS requires Add to Home Screen first).');
       return;
     }
 
     try {
       setSubscribing(true);
 
-      // Check if browser permission is blocked
-      if (Notification.permission === 'denied') {
-        alert('Notification permission is currently BLOCKED in your browser. Please tap the Lock icon 🔒 in your browser address bar and set Notifications to "Allow".');
-        return;
-      }
-
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        alert('Notification permission was not granted.');
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        alert('Notification permission status: ' + perm + '. Please tap the Lock icon 🔒 in your browser address bar and set Notifications to ALLOW.');
         return;
       }
 
@@ -90,10 +89,10 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
       const publicKey = res.data?.publicKey;
 
       if (!publicKey) {
-        throw new Error('VAPID public key could not be retrieved from server.');
+        alert('Error: Backend did not return a valid VAPID public key.');
+        return;
       }
 
-      // Register / get Service Worker registration
       const reg = await navigator.serviceWorker.register('/service-worker.js');
 
       try {
@@ -113,13 +112,13 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
       await axios.post(`${baseUrl}/api/push/subscribe`, sub.toJSON());
       setPushSubscribed(true);
 
-      // Trigger immediate test notification
+      // Trigger test notification
       await axios.post(`${baseUrl}/api/push/test`);
 
-      alert('🎉 Push Notifications Enabled! Test alert sent to your device.');
+      alert('🎉 Success! Web Push Notifications Enabled & Test Alert Sent!');
     } catch (err) {
       console.error(err);
-      alert('Push subscription notice: ' + (err.response?.data?.error || err.message));
+      alert('Push Setup Diagnostic Error: ' + (err.name || 'Error') + ' - ' + err.message);
     } finally {
       setSubscribing(false);
     }
