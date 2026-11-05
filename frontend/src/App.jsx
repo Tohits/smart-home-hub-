@@ -30,7 +30,7 @@ const getSavedRelays = () => {
 
 export default function App() {
   const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || RENDER_BACKEND_URL);
-  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto'); // 'auto', 'day', 'night'
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto');
   const [deviceStatus, setDeviceStatus] = useState('offline');
   const [telemetry, setTelemetry] = useState({ id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 });
   const [relays, setRelays] = useState(getSavedRelays);
@@ -39,11 +39,9 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Determine if Day Mode is active
   const isDayMode = (() => {
     if (themeMode === 'day') return true;
     if (themeMode === 'night') return false;
-    // Auto mode: Day between 6:00 AM and 6:00 PM (18:00)
     const hour = new Date().getHours();
     return hour >= 6 && hour < 18;
   })();
@@ -66,10 +64,14 @@ export default function App() {
     localStorage.setItem('smarthome_relays', JSON.stringify(relays));
   }, [relays]);
 
-  // Dynamic Page Background Color
   useEffect(() => {
-    document.body.style.backgroundColor = isDayMode ? '#f8fafc' : '#0b0f19';
-    document.body.style.color = isDayMode ? '#0f172a' : '#f3f4f6';
+    if (isDayMode) {
+      document.body.style.backgroundColor = '#f1f5f9';
+      document.body.style.color = '#0f172a';
+    } else {
+      document.body.style.backgroundColor = '#0b0f19';
+      document.body.style.color = '#f3f4f6';
+    }
   }, [isDayMode]);
 
   // Automatic background polling every 8 seconds
@@ -194,7 +196,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen p-4 md:p-8 max-w-6xl mx-auto transition-colors duration-300 ${
-      isDayMode ? 'bg-slate-50 text-slate-900' : 'bg-[#0b0f19] text-gray-100'
+      isDayMode ? 'bg-slate-100 text-slate-900' : 'bg-[#0b0f19] text-gray-100'
     }`}>
       {/* Telemetry Header */}
       <TelemetryHeader
