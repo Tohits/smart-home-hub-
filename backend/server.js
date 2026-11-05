@@ -79,6 +79,21 @@ app.post('/api/push/subscribe', async (req, res) => {
   }
 });
 
+// Test Web Push Notification
+app.post('/api/push/test', async (req, res) => {
+  try {
+    await webPush.sendNotificationToAll(
+      '🔔 Smart Home Hub',
+      'Web Push Notifications are active on your device!',
+      '/assets/icon-192.png',
+      true
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 3. User Login
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;

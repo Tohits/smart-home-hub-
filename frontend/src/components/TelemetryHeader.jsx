@@ -70,12 +70,20 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
 
     try {
       setSubscribing(true);
-      const baseUrl = backendUrl || '';
+
+      // Explicitly request browser notification permission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Notification permission was denied. Please allow notifications in your browser settings.');
+        return;
+      }
+
+      const baseUrl = backendUrl || 'https://smart-home-backend-16eu.onrender.com';
       const res = await axios.get(`${baseUrl}/api/push/vapid-key`);
       const publicKey = res.data?.publicKey;
 
       if (!publicKey) {
-        throw new Error('Please click "Backend Config" and enter your Render Backend URL first.');
+        throw new Error('VAPID public key could not be retrieved from server.');
       }
 
       const reg = await navigator.serviceWorker.ready;
@@ -91,7 +99,11 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
 
       await axios.post(`${baseUrl}/api/push/subscribe`, sub.toJSON());
       setPushSubscribed(true);
-      alert('VAPID Web Push Notifications enabled!');
+
+      // Trigger immediate test notification
+      await axios.post(`${baseUrl}/api/push/test`);
+
+      alert('Web Push Notifications enabled! Test notification sent to your device.');
     } catch (err) {
       console.error(err);
       alert('Push subscription notice: ' + (err.response?.data?.error || err.message));
