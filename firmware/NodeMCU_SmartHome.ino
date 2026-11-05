@@ -27,7 +27,7 @@
 #include <time.h>
 
 // Set to true for Active-LOW relay modules, or false for Active-HIGH relay modules
-#define RELAY_ACTIVE_LOW true
+#define RELAY_ACTIVE_LOW false
 
 #if RELAY_ACTIVE_LOW
   #define RELAY_ON   LOW
