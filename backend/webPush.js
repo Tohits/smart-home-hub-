@@ -5,39 +5,32 @@ const db = require('./database');
 
 const keysFilePath = path.join(__dirname, 'vapid_keys.json');
 
-let vapidPublic = process.env.VAPID_PUBLIC_KEY;
-let vapidPrivate = process.env.VAPID_PRIVATE_KEY;
-
 function loadOrGenerateVapidKeys() {
-  if (vapidPublic && vapidPrivate && !vapidPublic.includes('YOUR_VAPID') && !vapidPublic.includes('AUTO') && vapidPublic.length > 30) {
-    return { publicKey: vapidPublic, privateKey: vapidPrivate };
-  }
-
-  // Check persistent file on disk
+  // Check persistent file on disk first
   if (fs.existsSync(keysFilePath)) {
     try {
       const data = JSON.parse(fs.readFileSync(keysFilePath, 'utf8'));
-      if (data.publicKey && data.privateKey) {
+      if (data.publicKey && data.privateKey && data.publicKey.length >= 80) {
         return data;
       }
     } catch (e) {}
   }
 
-  // Generate permanent cryptographically valid P-256 VAPID keypair
-  console.log('[WebPush] Generating permanent VAPID keypair...');
+  // Generate fresh valid P-256 VAPID keypair
+  console.log('[WebPush] Generating fresh cryptographically valid VAPID keypair...');
   const keys = webpush.generateVAPIDKeys();
   try {
     fs.writeFileSync(keysFilePath, JSON.stringify(keys, null, 2));
-    console.log('[WebPush] Saved permanent VAPID keys to vapid_keys.json');
+    console.log('[WebPush] Saved valid VAPID keypair to vapid_keys.json');
   } catch (e) {
-    console.warn('[WebPush] Could not write vapid_keys.json:', e.message);
+    console.warn('[WebPush] Notice writing vapid_keys.json:', e.message);
   }
   return keys;
 }
 
 const activeKeys = loadOrGenerateVapidKeys();
-vapidPublic = activeKeys.publicKey;
-vapidPrivate = activeKeys.privateKey;
+const vapidPublic = activeKeys.publicKey;
+const vapidPrivate = activeKeys.privateKey;
 
 try {
   webpush.setVapidDetails(
@@ -45,7 +38,7 @@ try {
     vapidPublic,
     vapidPrivate
   );
-  console.log('[WebPush] VAPID details set successfully.');
+  console.log('[WebPush] VAPID details set successfully. Public key length:', vapidPublic.length);
 } catch (err) {
   console.error('[WebPush] VAPID configuration notice:', err.message);
 }
@@ -73,7 +66,7 @@ async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png',
       };
 
       return webpush.sendNotification(pushSubscription, payload).catch(err => {
-        console.warn(`[WebPush] Push result for endpoint (${sub.endpoint.substring(0, 30)}...): status ${err.statusCode || err.message}`);
+        console.warn(`[WebPush] Push result status: ${err.statusCode || err.message}`);
         if (err.statusCode === 410 || err.statusCode === 404) {
           db.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
         }
