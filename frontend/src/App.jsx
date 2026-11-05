@@ -50,9 +50,18 @@ export default function App() {
     localStorage.setItem('smarthome_relays', JSON.stringify(relays));
   }, [relays]);
 
+  // Automatic background polling every 8 seconds for 100% status freshness
   useEffect(() => {
     fetchInitialData();
 
+    const pollTimer = setInterval(() => {
+      fetchInitialData();
+    }, 8000);
+
+    return () => clearInterval(pollTimer);
+  }, [backendUrl]);
+
+  useEffect(() => {
     try {
       const socketTarget = backendUrl || RENDER_BACKEND_URL;
       const socket = io(socketTarget, {
@@ -104,10 +113,19 @@ export default function App() {
   const fetchInitialData = async () => {
     try {
       const baseUrl = backendUrl || RENDER_BACKEND_URL;
+
+      // Fetch live device status & telemetry
+      const statusRes = await axios.get(`${baseUrl}/api/system/status`);
+      if (statusRes.data) {
+        if (statusRes.data.status) setDeviceStatus(statusRes.data.status);
+        if (statusRes.data.telemetry) setTelemetry(statusRes.data.telemetry);
+      }
+
       const relayRes = await axios.get(`${baseUrl}/api/relays`);
       if (relayRes.data && Array.isArray(relayRes.data) && relayRes.data.length > 0) {
         setRelays(relayRes.data);
       }
+
       const logRes = await axios.get(`${baseUrl}/api/logs`);
       if (logRes.data && Array.isArray(logRes.data)) {
         setLogs(logRes.data);
