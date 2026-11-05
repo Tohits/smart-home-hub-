@@ -144,15 +144,21 @@ app.get('/api/schedules', authenticateToken, async (req, res) => {
 
 // 8. Create Schedule
 app.post('/api/schedules', authenticateToken, async (req, res) => {
-  const { deviceId, channel, timeCron, solarEvent, action } = req.body;
+  const { deviceId, channel, timeCron, solarEvent, action, repeatDaily } = req.body;
   const id = 'sch_' + Date.now();
   const relayId = `${deviceId || 'nodemcu_home_1'}_ch${channel}`;
+  const repeatBool = repeatDaily !== undefined ? Boolean(repeatDaily) : true;
 
   try {
     await db.query(
-      'INSERT INTO schedules (id, relay_id, device_id, channel, time_cron, solar_event, action, enabled) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [id, relayId, deviceId || 'nodemcu_home_1', channel, timeCron || null, solarEvent || null, action, true]
+      'INSERT INTO schedules (id, relay_id, device_id, channel, time_cron, solar_event, action, enabled, repeat_daily) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      [id, relayId, deviceId || 'nodemcu_home_1', channel, timeCron || null, solarEvent || null, action, true, repeatBool]
     );
+    res.json({ success: true, id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
     res.json({ success: true, id });
   } catch (err) {
     res.status(500).json({ error: err.message });

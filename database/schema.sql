@@ -27,9 +27,10 @@ CREATE TABLE IF NOT EXISTS schedules (
   device_id VARCHAR(64) NOT NULL,
   channel INTEGER NOT NULL,
   time_cron VARCHAR(64),
-  solar_event VARCHAR(32), -- 'sunrise', 'sunset', or NULL
-  action VARCHAR(10) NOT NULL, -- 'ON' or 'OFF'
+  solar_event VARCHAR(32),
+  action VARCHAR(10) NOT NULL,
   enabled BOOLEAN DEFAULT TRUE,
+  repeat_daily BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

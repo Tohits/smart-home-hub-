@@ -87,9 +87,16 @@ if (!dbClient) {
             time_cron: params[4],
             solar_event: params[5],
             action: params[6],
-            enabled: params[7]
+            enabled: params[7],
+            repeat_daily: params[8] !== undefined ? Boolean(params[8]) : true
           };
           inMemorySchedules.unshift(newSched);
+          return { rowCount: 1 };
+        }
+        if (s.includes('UPDATE SCHEDULES SET ENABLED')) {
+          const targetId = params[1];
+          const found = inMemorySchedules.find(sc => sc.id === targetId);
+          if (found) found.enabled = Boolean(params[0]);
           return { rowCount: 1 };
         }
         if (s.includes('DELETE FROM SCHEDULES')) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Sun, Moon, Plus, Trash2, Clock } from 'lucide-react';
+import { Calendar, Sun, Moon, Plus, Trash2, Clock, Repeat, Zap } from 'lucide-react';
 import axios from 'axios';
 
 // Convert 12h + AM/PM to 24h HH:MM string for backend
@@ -30,6 +30,7 @@ export default function ScheduleManager({ backendUrl }) {
   const [channel, setChannel] = useState(1);
   const [action, setAction] = useState('OFF');
   const [scheduleType, setScheduleType] = useState('time'); // 'time' or 'solar'
+  const [repeatDaily, setRepeatDaily] = useState(true); // Toggle for Repeat Daily
 
   // 12-Hour AM/PM Picker States
   const [hour12, setHour12] = useState('07');
@@ -62,7 +63,8 @@ export default function ScheduleManager({ backendUrl }) {
         channel: parseInt(channel, 10),
         timeCron: timeCron24,
         solarEvent: scheduleType === 'solar' ? solarEvent : null,
-        action
+        action,
+        repeatDaily
       });
       fetchSchedules();
     } catch (err) {
@@ -89,7 +91,7 @@ export default function ScheduleManager({ backendUrl }) {
         <h2 className="text-lg font-semibold text-white">Automation & Schedules (12-Hour AM/PM IST)</h2>
       </div>
 
-      <form onSubmit={handleAddSchedule} className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-6 bg-gray-950/60 p-4 rounded-xl border border-gray-800">
+      <form onSubmit={handleAddSchedule} className="grid grid-cols-1 md:grid-cols-7 gap-3 mb-6 bg-gray-950/60 p-4 rounded-xl border border-gray-800">
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">Relay Channel</label>
           <select
@@ -179,10 +181,27 @@ export default function ScheduleManager({ backendUrl }) {
           </div>
         )}
 
+        {/* Repeat Every Day Toggle Switch */}
+        <div>
+          <label className="block text-xs font-medium text-gray-400 mb-1">Repeat Mode</label>
+          <button
+            type="button"
+            onClick={() => setRepeatDaily(!repeatDaily)}
+            className={`w-full flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-xs font-semibold border transition ${
+              repeatDaily
+                ? 'bg-blue-600/20 text-blue-400 border-blue-500/40'
+                : 'bg-amber-600/20 text-amber-400 border-amber-500/40'
+            }`}
+          >
+            {repeatDaily ? <Repeat className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+            {repeatDaily ? 'Every Day' : 'One-Time'}
+          </button>
+        </div>
+
         <div className="flex items-end">
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2 px-3 rounded-lg transition"
+            className="w-full flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2 px-3 rounded-lg transition shadow-lg shadow-blue-600/20"
           >
             <Plus className="w-4 h-4" /> Add Trigger
           </button>
@@ -205,8 +224,17 @@ export default function ScheduleManager({ backendUrl }) {
                   <div className="text-sm font-medium text-white">
                     Channel {item.channel} ➔ <span className={item.action === 'ON' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>{item.action}</span>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    {item.solar_event ? `Solar Event: ${item.solar_event.toUpperCase()}` : `Time: ${format24to12(item.time_cron)} IST`}
+                  <div className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5">
+                    <span>{item.solar_event ? `Solar Event: ${item.solar_event.toUpperCase()}` : `Time: ${format24to12(item.time_cron)} IST`}</span>
+                    {item.repeat_daily !== false ? (
+                      <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                        <Repeat className="w-2.5 h-2.5" /> Repeats Daily
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                        <Zap className="w-2.5 h-2.5" /> One-Time Run
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
