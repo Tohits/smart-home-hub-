@@ -105,6 +105,15 @@ if (!dbClient) {
           if (idx !== -1) inMemorySchedules.splice(idx, 1);
           return { rowCount: 1 };
         }
+        if (s.includes('PUSH_SUBSCRIPTIONS')) {
+          if (params && params.length >= 4) {
+            const found = inMemorySubs.find(sub => sub.endpoint === params[1]);
+            if (!found) {
+              inMemorySubs.push({ id: params[0], endpoint: params[1], p256dh: params[2], auth: params[3] });
+            }
+          }
+          return { rowCount: 1 };
+        }
         return { rows: [] };
       },
       exec: async () => {}

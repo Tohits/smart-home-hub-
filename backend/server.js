@@ -69,10 +69,11 @@ app.post('/api/push/subscribe', async (req, res) => {
 
   try {
     const id = Date.now().toString();
-    await db.query(
-      'INSERT INTO push_subscriptions (id, endpoint, p256dh, auth, user_agent) VALUES ($1, $2, $3, $4, $5) ON CONFLICT(endpoint) DO NOTHING',
-      [id, endpoint, keys.p256dh, keys.auth, req.headers['user-agent'] || '']
-    );
+    const insertSql = db.isPostgres
+      ? 'INSERT INTO push_subscriptions (id, endpoint, p256dh, auth, user_agent) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (endpoint) DO NOTHING'
+      : 'INSERT OR IGNORE INTO push_subscriptions (id, endpoint, p256dh, auth, user_agent) VALUES ($1, $2, $3, $4, $5)';
+
+    await db.query(insertSql, [id, endpoint, keys.p256dh, keys.auth, req.headers['user-agent'] || '']);
     res.json({ success: true, message: 'Push subscription saved' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -169,11 +170,6 @@ app.post('/api/schedules', authenticateToken, async (req, res) => {
       'INSERT INTO schedules (id, relay_id, device_id, channel, time_cron, solar_event, action, enabled, repeat_daily) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       [id, relayId, deviceId || 'nodemcu_home_1', channel, timeCron || null, solarEvent || null, action, true, repeatBool]
     );
-    res.json({ success: true, id });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
     res.json({ success: true, id });
   } catch (err) {
     res.status(500).json({ error: err.message });
