@@ -78,6 +78,18 @@ if (!dbClient) {
           if (found) found.state = stateVal;
           return { rowCount: 1 };
         }
+        if (s.includes('UPDATE RELAYS SET NAME')) {
+          const nameVal = params[0];
+          const iconVal = params[1];
+          const targetId = params[2];
+          const chanNum = parseInt(targetId, 10);
+          const found = inMemoryRelays.find(r => r.id === targetId || r.channel === chanNum || r.channel == params[3]);
+          if (found) {
+            found.name = nameVal;
+            found.icon = iconVal;
+          }
+          return { rowCount: 1 };
+        }
         if (s.includes('INSERT INTO SCHEDULES')) {
           const newSched = {
             id: params[0],

@@ -149,13 +149,24 @@ app.post('/api/relays/toggle', authenticateToken, async (req, res) => {
   res.json({ success: true, channel, state: stateBool, mqttSent: success });
 });
 
-// 6. Update Relay Metadata
+// 6. Update Relay Metadata (Name, Icon)
 app.put('/api/relays/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name, icon } = req.body;
 
   try {
-    await db.query('UPDATE relays SET name = $1, icon = $2 WHERE id = $3', [name, icon, id]);
+    const channelNum = parseInt(id, 10);
+    if (!isNaN(channelNum) && channelNum >= 1 && channelNum <= 4) {
+      await db.query(
+        'UPDATE relays SET name = $1, icon = $2, updated_at = CURRENT_TIMESTAMP WHERE channel = $3 OR id = $4',
+        [name, icon, channelNum, id]
+      );
+    } else {
+      await db.query(
+        'UPDATE relays SET name = $1, icon = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 OR channel = $4',
+        [name, icon, id, channelNum]
+      );
+    }
     res.json({ success: true, id, name, icon });
   } catch (err) {
     res.status(500).json({ error: err.message });

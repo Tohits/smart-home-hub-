@@ -52,7 +52,6 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Auto time check every 1 minute for automatic theme transition
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentHour(new Date().getHours());
@@ -60,7 +59,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Determine if Day Mode is active
   const isDayMode = (() => {
     if (themeMode === 'day') return true;
     if (themeMode === 'night') return false;
@@ -183,7 +181,16 @@ export default function App() {
 
       const relayRes = await axios.get(`${baseUrl}/api/relays`);
       if (relayRes.data && Array.isArray(relayRes.data) && relayRes.data.length > 0) {
-        setRelays(relayRes.data);
+        setRelays((prevRelays) => {
+          return relayRes.data.map((serverRelay) => {
+            const localMatch = prevRelays.find((r) => r.channel === serverRelay.channel);
+            return {
+              ...serverRelay,
+              name: (localMatch && localMatch.name) ? localMatch.name : serverRelay.name,
+              icon: (localMatch && localMatch.icon) ? localMatch.icon : serverRelay.icon,
+            };
+          });
+        });
       }
 
       const logRes = await axios.get(`${baseUrl}/api/logs`);
