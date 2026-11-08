@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
@@ -38,6 +39,19 @@ app.use('/uploads', express.static(uploadsDir));
 // Initialize MQTT & Scheduler Engine
 mqttService.initMqtt(io);
 scheduler.initScheduler();
+
+// Self Keep-Alive Ping every 10 minutes to prevent Render from sleeping
+setInterval(() => {
+  try {
+    const host = process.env.RENDER_EXTERNAL_HOSTNAME || 'smart-home-backend-16eu.onrender.com';
+    const pingUrl = `https://${host}/api/system/status`;
+    https.get(pingUrl, (res) => {
+      console.log(`[Keep-Alive] Self ping status code: ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.warn('[Keep-Alive] Self ping notice:', err.message);
+    });
+  } catch (e) {}
+}, 10 * 60 * 1000);
 
 // JWT Verification Middleware
 function authenticateToken(req, res, next) {

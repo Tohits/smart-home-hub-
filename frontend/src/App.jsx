@@ -28,12 +28,24 @@ const getSavedRelays = () => {
   return DEFAULT_RELAYS;
 };
 
+const getSavedTelemetry = () => {
+  try {
+    const saved = localStorage.getItem('smarthome_telemetry');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return { id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 };
+};
+
+const getSavedStatus = () => {
+  return localStorage.getItem('smarthome_status') || 'offline';
+};
+
 export default function App() {
   const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || RENDER_BACKEND_URL);
-  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto'); // 'auto', 'day', 'night'
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto');
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
-  const [deviceStatus, setDeviceStatus] = useState('offline');
-  const [telemetry, setTelemetry] = useState({ id: 'nodemcu_home_1', rssi: -65, freeHeap: 24500, uptime: 120 });
+  const [deviceStatus, setDeviceStatus] = useState(getSavedStatus);
+  const [telemetry, setTelemetry] = useState(getSavedTelemetry);
   const [relays, setRelays] = useState(getSavedRelays);
   const [logs, setLogs] = useState([]);
   const [otaStatus, setOtaStatus] = useState('');
@@ -52,7 +64,6 @@ export default function App() {
   const isDayMode = (() => {
     if (themeMode === 'day') return true;
     if (themeMode === 'night') return false;
-    // Auto mode: Day between 6:00 AM (6) and 6:00 PM (18)
     return currentHour >= 6 && currentHour < 18;
   })();
 
@@ -77,6 +88,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('smarthome_relays', JSON.stringify(relays));
   }, [relays]);
+
+  useEffect(() => {
+    if (telemetry && telemetry.id) {
+      localStorage.setItem('smarthome_telemetry', JSON.stringify(telemetry));
+    }
+  }, [telemetry]);
+
+  useEffect(() => {
+    if (deviceStatus) {
+      localStorage.setItem('smarthome_status', deviceStatus);
+    }
+  }, [deviceStatus]);
 
   useEffect(() => {
     if (isDayMode) {
