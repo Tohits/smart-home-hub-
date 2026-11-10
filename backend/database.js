@@ -111,6 +111,19 @@ if (!dbClient) {
           if (found) found.enabled = Boolean(params[0]);
           return { rowCount: 1 };
         }
+        if (s.includes('UPDATE SCHEDULES SET RELAY_ID')) {
+          const targetId = params[6];
+          const found = inMemorySchedules.find(sc => sc.id === targetId);
+          if (found) {
+            found.relay_id = params[0];
+            found.channel = params[1];
+            found.time_cron = params[2];
+            found.solar_event = params[3];
+            found.action = params[4];
+            found.repeat_daily = params[5];
+          }
+          return { rowCount: 1 };
+        }
         if (s.includes('DELETE FROM SCHEDULES')) {
           const targetId = params[0];
           const idx = inMemorySchedules.findIndex(sc => sc.id === targetId);

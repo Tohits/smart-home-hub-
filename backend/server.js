@@ -211,6 +211,25 @@ app.delete('/api/schedules/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// 9b. Update Schedule
+app.put('/api/schedules/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { deviceId, channel, timeCron, solarEvent, action, repeatDaily } = req.body;
+  const devId = deviceId || 'nodemcu_home_1';
+  const relayId = `${devId}_ch${channel}`;
+  const repeatBool = repeatDaily !== undefined ? Boolean(repeatDaily) : true;
+
+  try {
+    await db.query(
+      'UPDATE schedules SET relay_id = $1, channel = $2, time_cron = $3, solar_event = $4, action = $5, repeat_daily = $6 WHERE id = $7',
+      [relayId, parseInt(channel, 10), timeCron || null, solarEvent || null, action, repeatBool, id]
+    );
+    res.json({ success: true, id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 10. System Status & Telemetry
 app.get('/api/system/status', authenticateToken, (req, res) => {
   res.json(mqttService.getDeviceState());
