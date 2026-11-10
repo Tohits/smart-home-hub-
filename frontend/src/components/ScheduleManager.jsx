@@ -25,7 +25,7 @@ const format24to12 = (time24) => {
   return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
 };
 
-export default function ScheduleManager({ backendUrl }) {
+export default function ScheduleManager({ backendUrl, relays = [], isDayMode }) {
   const [schedules, setSchedules] = useState([]);
   const [channel, setChannel] = useState(1);
   const [action, setAction] = useState('OFF');
@@ -50,6 +50,11 @@ export default function ScheduleManager({ backendUrl }) {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const getRelayName = (channelNum) => {
+    const r = relays.find((item) => Number(item.channel) === Number(channelNum));
+    return r && r.name ? r.name : `Channel ${channelNum}`;
   };
 
   const handleAddSchedule = async (e) => {
@@ -85,33 +90,51 @@ export default function ScheduleManager({ backendUrl }) {
   };
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+    <div className={`border rounded-2xl p-5 shadow-xl transition-colors duration-300 ${
+      isDayMode ? 'bg-white border-slate-200' : 'bg-gray-900 border-gray-800'
+    }`}>
       <div className="flex items-center gap-2 mb-4">
-        <Calendar className="w-5 h-5 text-blue-400" />
-        <h2 className="text-lg font-semibold text-white">Automation & Schedules (12-Hour AM/PM IST)</h2>
+        <Calendar className="w-5 h-5 text-blue-500" />
+        <h2 className={`text-lg font-semibold ${isDayMode ? 'text-slate-900' : 'text-white'}`}>
+          Automation & Schedules (12-Hour AM/PM IST)
+        </h2>
       </div>
 
-      <form onSubmit={handleAddSchedule} className="grid grid-cols-1 md:grid-cols-7 gap-3 mb-6 bg-gray-950/60 p-4 rounded-xl border border-gray-800">
+      <form onSubmit={handleAddSchedule} className={`grid grid-cols-1 md:grid-cols-7 gap-3 mb-6 p-4 rounded-xl border ${
+        isDayMode ? 'bg-slate-50 border-slate-200' : 'bg-gray-950/60 border-gray-800'
+      }`}>
         <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Relay Channel</label>
+          <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+            Relay Channel
+          </label>
           <select
             value={channel}
             onChange={(e) => setChannel(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2 focus:outline-none"
+            className={`w-full border text-xs rounded-lg p-2 focus:outline-none ${
+              isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+            }`}
           >
-            <option value="1">Channel 1 (Main Light)</option>
-            <option value="2">Channel 2 (Ceiling Fan)</option>
-            <option value="3">Channel 3 (AC Unit)</option>
-            <option value="4">Channel 4 (Night Lamp)</option>
+            {[1, 2, 3, 4].map((chNum) => {
+              const name = getRelayName(chNum);
+              return (
+                <option key={chNum} value={chNum}>
+                  Channel {chNum} ({name})
+                </option>
+              );
+            })}
           </select>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Action</label>
+          <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+            Action
+          </label>
           <select
             value={action}
             onChange={(e) => setAction(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2 focus:outline-none"
+            className={`w-full border text-xs rounded-lg p-2 focus:outline-none ${
+              isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+            }`}
           >
             <option value="OFF">Turn OFF 🔴</option>
             <option value="ON">Turn ON 🟢</option>
@@ -119,11 +142,15 @@ export default function ScheduleManager({ backendUrl }) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Trigger Mode</label>
+          <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+            Trigger Mode
+          </label>
           <select
             value={scheduleType}
             onChange={(e) => setScheduleType(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2 focus:outline-none"
+            className={`w-full border text-xs rounded-lg p-2 focus:outline-none ${
+              isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+            }`}
           >
             <option value="time">Clock Time (AM/PM)</option>
             <option value="solar">Solar (Sunrise/Sunset)</option>
@@ -133,24 +160,30 @@ export default function ScheduleManager({ backendUrl }) {
         {/* 12-Hour AM/PM Time Selector */}
         {scheduleType === 'time' ? (
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-gray-400 mb-1">Select Time (HH : MM AM/PM)</label>
+            <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+              Select Time (HH : MM AM/PM)
+            </label>
             <div className="flex gap-1">
               <select
                 value={hour12}
                 onChange={(e) => setHour12(e.target.value)}
-                className="flex-1 bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2 focus:outline-none"
+                className={`flex-1 border text-xs rounded-lg p-2 focus:outline-none ${
+                  isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+                }`}
               >
                 {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0')).map((h) => (
                   <option key={h} value={h}>{h}</option>
                 ))}
               </select>
 
-              <span className="text-gray-400 self-center font-bold">:</span>
+              <span className={`self-center font-bold ${isDayMode ? 'text-slate-400' : 'text-gray-400'}`}>:</span>
 
               <select
                 value={minute}
                 onChange={(e) => setMinute(e.target.value)}
-                className="flex-1 bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2 focus:outline-none"
+                className={`flex-1 border text-xs rounded-lg p-2 focus:outline-none ${
+                  isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+                }`}
               >
                 {Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0')).map((m) => (
                   <option key={m} value={m}>{m}</option>
@@ -160,7 +193,11 @@ export default function ScheduleManager({ backendUrl }) {
               <select
                 value={ampm}
                 onChange={(e) => setAmpm(e.target.value)}
-                className="bg-blue-950 border border-blue-600 text-blue-300 font-bold text-xs rounded-lg px-2 focus:outline-none"
+                className={`border font-bold text-xs rounded-lg px-2 focus:outline-none ${
+                  isDayMode
+                    ? 'bg-blue-50 border-blue-300 text-blue-700'
+                    : 'bg-blue-950 border-blue-600 text-blue-300'
+                }`}
               >
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>
@@ -169,11 +206,15 @@ export default function ScheduleManager({ backendUrl }) {
           </div>
         ) : (
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-gray-400 mb-1">Trigger Event</label>
+            <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+              Trigger Event
+            </label>
             <select
               value={solarEvent}
               onChange={(e) => setSolarEvent(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2 focus:outline-none"
+              className={`w-full border text-xs rounded-lg p-2 focus:outline-none ${
+                isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+              }`}
             >
               <option value="sunrise">Sunrise (🌅)</option>
               <option value="sunset">Sunset (🌆)</option>
@@ -183,14 +224,20 @@ export default function ScheduleManager({ backendUrl }) {
 
         {/* Repeat Every Day Toggle Switch */}
         <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Repeat Mode</label>
+          <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+            Repeat Mode
+          </label>
           <button
             type="button"
             onClick={() => setRepeatDaily(!repeatDaily)}
             className={`w-full flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-xs font-semibold border transition ${
               repeatDaily
-                ? 'bg-blue-600/20 text-blue-400 border-blue-500/40'
-                : 'bg-amber-600/20 text-amber-400 border-amber-500/40'
+                ? isDayMode
+                  ? 'bg-blue-50 text-blue-600 border-blue-200'
+                  : 'bg-blue-600/20 text-blue-400 border-blue-500/40'
+                : isDayMode
+                  ? 'bg-amber-50 text-amber-600 border-amber-200'
+                  : 'bg-amber-600/20 text-amber-400 border-amber-500/40'
             }`}
           >
             {repeatDaily ? <Repeat className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
@@ -210,28 +257,40 @@ export default function ScheduleManager({ backendUrl }) {
 
       <div className="space-y-2">
         {schedules.length === 0 ? (
-          <p className="text-xs text-gray-500 text-center py-4">No active schedules configured.</p>
+          <p className={`text-xs text-center py-4 ${isDayMode ? 'text-slate-400' : 'text-gray-500'}`}>
+            No active schedules configured.
+          </p>
         ) : (
           schedules.map((item) => (
-            <div key={item.id} className="flex items-center justify-between bg-gray-950/40 p-3 rounded-xl border border-gray-800/60">
+            <div key={item.id} className={`flex items-center justify-between p-3 rounded-xl border ${
+              isDayMode ? 'bg-slate-50 border-slate-200' : 'bg-gray-950/40 border-gray-800/60'
+            }`}>
               <div className="flex items-center gap-3">
                 {item.solar_event ? (
-                  item.solar_event === 'sunrise' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-purple-400" />
+                  item.solar_event === 'sunrise' ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-purple-400" />
                 ) : (
-                  <Clock className="w-4 h-4 text-blue-400" />
+                  <Clock className="w-4 h-4 text-blue-500" />
                 )}
                 <div>
-                  <div className="text-sm font-medium text-white">
-                    Channel {item.channel} ➔ <span className={item.action === 'ON' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>{item.action}</span>
+                  <div className={`text-sm font-semibold ${isDayMode ? 'text-slate-900' : 'text-white'}`}>
+                    Channel {item.channel} ({getRelayName(item.channel)}) ➔ <span className={item.action === 'ON' ? 'text-emerald-500 font-bold' : 'text-red-500 font-bold'}>{item.action}</span>
                   </div>
-                  <div className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5">
+                  <div className={`text-xs flex items-center gap-1.5 mt-0.5 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
                     <span>{item.solar_event ? `Solar Event: ${item.solar_event.toUpperCase()}` : `Time: ${format24to12(item.time_cron)} IST`}</span>
                     {item.repeat_daily !== false ? (
-                      <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <span className={`text-[10px] border px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1 ${
+                        isDayMode
+                          ? 'bg-blue-50 text-blue-600 border-blue-200'
+                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                      }`}>
                         <Repeat className="w-2.5 h-2.5" /> Repeats Daily
                       </span>
                     ) : (
-                      <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <span className={`text-[10px] border px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1 ${
+                        isDayMode
+                          ? 'bg-amber-50 text-amber-600 border-amber-200'
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      }`}>
                         <Zap className="w-2.5 h-2.5" /> One-Time Run
                       </span>
                     )}
@@ -241,7 +300,7 @@ export default function ScheduleManager({ backendUrl }) {
 
               <button
                 onClick={() => handleDelete(item.id)}
-                className="p-1.5 text-gray-500 hover:text-red-400 transition"
+                className={`p-1.5 transition ${isDayMode ? 'text-slate-400 hover:text-red-500' : 'text-gray-500 hover:text-red-400'}`}
                 title="Delete Schedule"
               >
                 <Trash2 className="w-4 h-4" />

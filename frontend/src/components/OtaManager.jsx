@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DownloadCloud, FileUp, CheckCircle2, ShieldCheck, HardDrive } from 'lucide-react';
 import axios from 'axios';
 
-export default function OtaManager({ otaStatus }) {
+export default function OtaManager({ otaStatus, isDayMode }) {
   const [url, setUrl] = useState('');
   const [size, setSize] = useState('');
   const [sha256, setSha256] = useState('');
@@ -88,28 +88,40 @@ export default function OtaManager({ otaStatus }) {
   };
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+    <div className={`border rounded-2xl p-5 shadow-xl transition-colors duration-300 ${
+      isDayMode ? 'bg-white border-slate-200' : 'bg-gray-900 border-gray-800'
+    }`}>
       <div className="flex items-center gap-2 mb-4">
-        <DownloadCloud className="w-5 h-5 text-purple-400" />
-        <h2 className="text-lg font-semibold text-white">Firmware WAN OTA Manager</h2>
+        <DownloadCloud className="w-5 h-5 text-purple-500" />
+        <h2 className={`text-lg font-semibold ${isDayMode ? 'text-slate-900' : 'text-white'}`}>
+          Firmware WAN OTA Manager
+        </h2>
       </div>
 
       {otaStatus && (
-        <div className="mb-4 bg-purple-950/40 border border-purple-500/30 p-3 rounded-xl flex items-center gap-2 text-xs text-purple-300">
-          <CheckCircle2 className="w-4 h-4 text-purple-400" />
+        <div className={`mb-4 p-3 rounded-xl flex items-center gap-2 text-xs border ${
+          isDayMode ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-purple-950/40 border-purple-500/30 text-purple-300'
+        }`}>
+          <CheckCircle2 className="w-4 h-4 text-purple-500" />
           <span>Live Device OTA Status: <b>{otaStatus}</b></span>
         </div>
       )}
 
       {/* Local .bin File Upload Section */}
-      <div className="mb-6 bg-gray-950/80 p-4 rounded-xl border border-gray-800">
-        <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+      <div className={`mb-6 p-4 rounded-xl border ${
+        isDayMode ? 'bg-slate-50 border-slate-200' : 'bg-gray-950/80 border-gray-800'
+      }`}>
+        <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-purple-500 uppercase tracking-wider">
           <HardDrive className="w-4 h-4" /> Direct File Picker (Arduino IDE .bin)
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 mt-3">
-          <label className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-xs font-semibold py-2.5 px-4 rounded-xl cursor-pointer transition">
-            <FileUp className="w-4 h-4 text-purple-400" />
+          <label className={`w-full sm:w-auto flex items-center justify-center gap-2 border text-xs font-semibold py-2.5 px-4 rounded-xl cursor-pointer transition ${
+            isDayMode
+              ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+              : 'bg-gray-800 hover:bg-gray-700 text-gray-200 border-gray-700'
+          }`}>
+            <FileUp className="w-4 h-4 text-purple-500" />
             <span>Browse .bin File</span>
             <input type="file" accept=".bin" onChange={handleFileSelect} className="hidden" />
           </label>
@@ -128,42 +140,56 @@ export default function OtaManager({ otaStatus }) {
       </div>
 
       {/* Manual URL Form */}
-      <form onSubmit={handleDispatchOta} className="space-y-3 bg-gray-950/60 p-4 rounded-xl border border-gray-800">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+      <form onSubmit={handleDispatchOta} className={`space-y-3 p-4 rounded-xl border ${
+        isDayMode ? 'bg-slate-50 border-slate-200' : 'bg-gray-950/60 border-gray-800'
+      }`}>
+        <div className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
           Or Enter Remote Firmware URL
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">HTTPS Binary Firmware URL (.bin)</label>
+          <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+            HTTPS Binary Firmware URL (.bin)
+          </label>
           <input
             type="url"
             placeholder="https://raw.githubusercontent.com/.../firmware.bin"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-purple-500"
+            className={`w-full border text-xs rounded-lg p-2.5 focus:outline-none focus:border-purple-500 ${
+              isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+            }`}
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">File Size (Bytes)</label>
+            <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+              File Size (Bytes)
+            </label>
             <input
               type="number"
               placeholder="485120"
               value={size}
               onChange={(e) => setSize(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-purple-500"
+              className={`w-full border text-xs rounded-lg p-2.5 focus:outline-none focus:border-purple-500 ${
+                isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">SHA-256 Checksum</label>
+            <label className={`block text-xs font-medium mb-1 ${isDayMode ? 'text-slate-500' : 'text-gray-400'}`}>
+              SHA-256 Checksum
+            </label>
             <input
               type="text"
               placeholder="a1b2c3d4..."
               value={sha256}
               onChange={(e) => setSha256(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 text-white text-xs rounded-lg p-2.5 focus:outline-none focus:border-purple-500"
+              className={`w-full border text-xs rounded-lg p-2.5 focus:outline-none focus:border-purple-500 ${
+                isDayMode ? 'bg-white border-slate-300 text-slate-900' : 'bg-gray-900 border-gray-700 text-white'
+              }`}
             />
           </div>
         </div>
@@ -171,14 +197,18 @@ export default function OtaManager({ otaStatus }) {
         <button
           type="submit"
           disabled={dispatching || !url}
-          className="w-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 border border-gray-700"
+          className={`w-full text-xs font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 border ${
+            isDayMode
+              ? 'bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white border-slate-700'
+              : 'bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white border-gray-700'
+          }`}
         >
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
           {dispatching ? 'Broadcasting Payload...' : 'Dispatch OTA Payload via URL'}
         </button>
 
         {resultMsg && (
-          <p className="text-xs text-center text-emerald-400 font-medium mt-2">{resultMsg}</p>
+          <p className="text-xs text-center text-emerald-500 font-medium mt-2">{resultMsg}</p>
         )}
       </form>
     </div>

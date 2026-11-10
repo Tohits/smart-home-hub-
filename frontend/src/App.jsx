@@ -320,9 +320,20 @@ export default function App() {
         </div>
       )}
 
-      {activeTab === 'automation' && <ScheduleManager backendUrl={backendUrl} />}
+      {activeTab === 'automation' && (
+        <ScheduleManager
+          backendUrl={backendUrl}
+          relays={relays}
+          isDayMode={isDayMode}
+        />
+      )}
 
-      {activeTab === 'ota' && <OtaManager otaStatus={otaStatus} />}
+      {activeTab === 'ota' && (
+        <OtaManager
+          otaStatus={otaStatus}
+          isDayMode={isDayMode}
+        />
+      )}
 
       {activeTab === 'logs' && (
         <div className={`border rounded-2xl p-5 shadow-xl ${

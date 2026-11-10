@@ -6,6 +6,7 @@
   - Hardware Reset Button: D7 (Hold 5s to clear Wi-Fi settings)
   - Scheduled Maintenance: Automatic 12-Hour System Reboot with State Memory
   - Flash State Persistence: Relay ON/OFF states saved to LittleFS and restored on boot
+  - Fast Non-Blocking Wi-Fi Auto-Reconnect: Background retries every 8s (no blocking captive portal delay)
   - MQTT Broker: HiveMQ Cloud TLS Port 8883
   - Wi-Fi Provisioning: WiFiManager Captive Portal "SmartHome-Setup"
   - Topics: home/{deviceId}/relay/{1-4}/set, home/{deviceId}/relay/{1-4}/state,
@@ -70,7 +71,9 @@ Jy19dHuuJrIDV6L75e640Rk9B854A0h36vR3uH7r0f5v7e/lVw/J9eXh3X
 WiFiClientSecure espClient;
 PubSubClient     mqttClient(espClient);
 
-unsigned long lastTelemetryReport = 0;
+unsigned long lastTelemetryReport   = 0;
+unsigned long lastWifiRetryTimer    = 0;
+unsigned long wifiDisconnectedTime  = 0;
 bool shouldSaveConfig = false;
 bool isUpdating       = false;
 
@@ -104,8 +107,10 @@ void setup() {
   initializeSafeRelays();
   pinMode(RESET_PIN, INPUT_PULLUP);
 
-  // STEP 2: WiFi Mode Station
+  // STEP 2: Fast WiFi Auto-Reconnect Setup
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
 
   // STEP 3: Load Config & Setup Portal
   loadConfig();
@@ -169,10 +174,29 @@ void loop() {
   // Check physical reset button (Hold D7 for 5s to clear Wi-Fi)
   checkResetButton();
 
+  // Fast Non-Blocking Wi-Fi Auto-Reconnect Logic
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println(F("[Wi-Fi] Disconnected! Re-launching Provisioning Portal..."));
-    setupCaptivePortal();
+    if (wifiDisconnectedTime == 0) {
+      wifiDisconnectedTime = millis();
+    }
+
+    // Attempt background Wi-Fi reconnect every 8 seconds
+    if (millis() - lastWifiRetryTimer > 8000) {
+      lastWifiRetryTimer = millis();
+      Serial.println(F("[Wi-Fi] Disconnected! Attempting fast background auto-reconnect..."));
+      WiFi.reconnect();
+    }
+
+    // Only launch 3-minute captive portal if Wi-Fi has been dead for > 5 minutes
+    if (millis() - wifiDisconnectedTime > 300000UL) {
+      Serial.println(F("[Wi-Fi] 5-minute timeout reached. Launching SmartHome-Setup AP portal..."));
+      setupCaptivePortal();
+      wifiDisconnectedTime = millis();
+    }
+
     return;
+  } else {
+    wifiDisconnectedTime = 0; // Reset timer when Wi-Fi is connected
   }
 
   if (!mqttClient.connected()) {
