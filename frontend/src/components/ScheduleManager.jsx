@@ -280,7 +280,7 @@ export default function ScheduleManager({ backendUrl, relays = [], isDayMode }) 
               }`}
             >
               <option value="sunrise">Sunrise (🌅)</option>
-              <option value="sunset">Sunset (<ctrl42>)</option>
+              <option value="sunset">Sunset (🌆)</option>
             </select>
           </div>
         )}
