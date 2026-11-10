@@ -258,7 +258,13 @@ app.get('/api/logs', authenticateToken, async (req, res) => {
     const result = await db.query('SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 50');
     const rows = (result.rows || []).map((row) => {
       let createdAt = row.created_at;
-      if (typeof createdAt === 'string') {
+      if (!createdAt) {
+        if (row.id && /^\d+$/.test(row.id)) {
+          createdAt = new Date(parseInt(row.id, 10)).toISOString();
+        } else {
+          createdAt = new Date().toISOString();
+        }
+      } else if (typeof createdAt === 'string') {
         let str = createdAt.trim();
         if (str.includes(' ') && !str.includes('T')) {
           str = str.replace(' ', 'T') + 'Z';

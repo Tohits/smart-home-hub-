@@ -70,9 +70,25 @@ async function checkCronAndSolarSchedules() {
         mqttService.setRelayState(schedule.device_id, schedule.channel, actionStr);
 
         // 3. Log event
+        let relayName = `Channel ${schedule.channel}`;
+        try {
+          const relayRes = await db.query('SELECT name FROM relays WHERE device_id = $1 AND channel = $2', [schedule.device_id, schedule.channel]);
+          if (relayRes.rows && relayRes.rows[0] && relayRes.rows[0].name) {
+            relayName = `${relayRes.rows[0].name} (Channel ${schedule.channel})`;
+          }
+        } catch (e) {}
+
+        const triggerInfo = schedule.solar_event ? `Solar ${schedule.solar_event.toUpperCase()}` : `${schedule.time_cron} IST`;
+
         await db.query(
-          'INSERT INTO activity_logs (id, event_type, details, source) VALUES ($1, $2, $3, $4)',
-          [Date.now().toString(), 'SCHEDULE_TRIGGER', `Schedule ${schedule.id} turned Relay CH${schedule.channel} ${actionStr}`, 'scheduler']
+          'INSERT INTO activity_logs (id, event_type, details, source, created_at) VALUES ($1, $2, $3, $4, $5)',
+          [
+            Date.now().toString(),
+            'SCHEDULE_TRIGGER',
+            `Automated schedule turned ${relayName} ${actionStr} [Scheduled: ${triggerInfo}]`,
+            'scheduler',
+            new Date().toISOString()
+          ]
         );
       }
     }

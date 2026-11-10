@@ -52,8 +52,8 @@ function initMqtt(io) {
         if (ioInstance) ioInstance.emit('device:status', { deviceId, status: message });
 
         await db.query(
-          'INSERT INTO activity_logs (id, event_type, details, source) VALUES ($1, $2, $3, $4)',
-          [Date.now().toString(), 'DEVICE_STATUS', `Device ${deviceId} is ${message}`, 'mqtt']
+          'INSERT INTO activity_logs (id, event_type, details, source, created_at) VALUES ($1, $2, $3, $4, $5)',
+          [Date.now().toString(), 'DEVICE_STATUS', `Device ${deviceId} is ${message.toUpperCase()}`, 'mqtt', new Date().toISOString()]
         );
 
         if (message === 'offline') {

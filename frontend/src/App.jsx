@@ -375,8 +375,10 @@ export default function App() {
                   <div>
                     <span className="font-semibold text-blue-500">[{log.event_type}]</span> {log.details}
                   </div>
-                  <span className={isDayMode ? 'text-slate-400 font-medium' : 'text-gray-500 font-medium'}>
-                    {parseLogDate(log.created_at).toLocaleTimeString([], {
+                  <span className={isDayMode ? 'text-slate-400 font-medium text-[11px]' : 'text-gray-500 font-medium text-[11px]'}>
+                    {parseLogDate(log.created_at).toLocaleString([], {
+                      month: 'short',
+                      day: 'numeric',
                       hour: 'numeric',
                       minute: '2-digit',
                       second: '2-digit',
