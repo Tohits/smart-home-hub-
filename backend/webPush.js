@@ -61,8 +61,26 @@ try {
 
 async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png', quietHoursAllowed = true) {
   try {
-    const res = await db.query('SELECT * FROM push_subscriptions');
-    const subscriptions = res.rows || [];
+    let subscriptions = [];
+    try {
+      const res = await db.query('SELECT * FROM push_subscriptions');
+      subscriptions = res.rows || [];
+    } catch (e) {}
+
+    // Combine with persistent file backup so subscribers are never lost when PWA is closed
+    if (db.getPushSubscriptionsBackup) {
+      const backups = db.getPushSubscriptionsBackup();
+      for (const bSub of backups) {
+        if (!subscriptions.some(s => s.endpoint === bSub.endpoint)) {
+          subscriptions.push(bSub);
+        }
+      }
+    }
+
+    if (subscriptions.length === 0) {
+      console.log('[WebPush] No subscribers found in database or backup.');
+      return;
+    }
 
     const payload = JSON.stringify({ title, body, icon, timestamp: Date.now() });
 
@@ -78,13 +96,14 @@ async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png',
         console.warn(`[WebPush] Push result status: ${err.statusCode || err.message}`);
         if (err.statusCode === 410) {
           db.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
+          if (db.removePushSubscriptionBackup) db.removePushSubscriptionBackup(sub.endpoint);
         }
       });
     });
 
     await Promise.all(sendPromises);
   } catch (err) {
-    console.error('[WebPush] Error fetching subscriptions:', err.message);
+    console.error('[WebPush] Error dispatching push notifications:', err.message);
   }
 }
 

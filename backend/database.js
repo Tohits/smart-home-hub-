@@ -156,6 +156,35 @@ if (!dbClient) {
   }
 }
 
+const subsFilePath = path.join(__dirname, 'push_subscriptions.json');
+
+function getPushSubscriptionsBackup() {
+  if (fs.existsSync(subsFilePath)) {
+    try {
+      return JSON.parse(fs.readFileSync(subsFilePath, 'utf8')) || [];
+    } catch (e) {}
+  }
+  return [];
+}
+
+function addPushSubscriptionBackup(subObj) {
+  try {
+    const list = getPushSubscriptionsBackup();
+    if (!list.some(s => s.endpoint === subObj.endpoint)) {
+      list.push(subObj);
+      fs.writeFileSync(subsFilePath, JSON.stringify(list, null, 2));
+    }
+  } catch (e) {}
+}
+
+function removePushSubscriptionBackup(endpoint) {
+  try {
+    const list = getPushSubscriptionsBackup();
+    const filtered = list.filter(s => s.endpoint !== endpoint);
+    fs.writeFileSync(subsFilePath, JSON.stringify(filtered, null, 2));
+  } catch (e) {}
+}
+
 async function initDatabase() {
   try {
     const schemaPath = path.join(__dirname, '..', 'database', 'schema.sql');
@@ -177,5 +206,8 @@ initDatabase();
 
 module.exports = {
   query: (text, params) => dbClient.query(text, params),
-  isPostgres
+  isPostgres,
+  getPushSubscriptionsBackup,
+  addPushSubscriptionBackup,
+  removePushSubscriptionBackup
 };

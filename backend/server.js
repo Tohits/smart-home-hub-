@@ -40,7 +40,7 @@ app.use('/uploads', express.static(uploadsDir));
 mqttService.initMqtt(io);
 scheduler.initScheduler();
 
-// Self Keep-Alive Ping every 10 minutes to prevent Render from sleeping
+// Self Keep-Alive Ping every 4 minutes to prevent Render from sleeping
 setInterval(() => {
   try {
     const host = process.env.RENDER_EXTERNAL_HOSTNAME || 'smart-home-backend-16eu.onrender.com';
@@ -51,7 +51,7 @@ setInterval(() => {
       console.warn('[Keep-Alive] Self ping notice:', err.message);
     });
   } catch (e) {}
-}, 10 * 60 * 1000);
+}, 4 * 60 * 1000);
 
 // JWT Verification Middleware
 function authenticateToken(req, res, next) {
@@ -88,6 +88,7 @@ app.post('/api/push/subscribe', async (req, res) => {
       : 'INSERT OR IGNORE INTO push_subscriptions (id, endpoint, p256dh, auth, user_agent) VALUES ($1, $2, $3, $4, $5)';
 
     await db.query(insertSql, [id, endpoint, keys.p256dh, keys.auth, req.headers['user-agent'] || '']);
+    db.addPushSubscriptionBackup({ id, endpoint, p256dh: keys.p256dh, auth: keys.auth, user_agent: req.headers['user-agent'] || '' });
     res.json({ success: true, message: 'Push subscription saved' });
   } catch (err) {
     res.status(500).json({ error: err.message });
