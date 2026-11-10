@@ -62,6 +62,13 @@ const parseLogDate = (dateVal) => {
   return isNaN(d.getTime()) ? new Date() : d;
 };
 
+const formatLogDateTime = (dateVal) => {
+  const d = parseLogDate(dateVal);
+  const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+  return `${dateStr} • ${timeStr}`;
+};
+
 export default function App() {
   const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || RENDER_BACKEND_URL);
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto');
@@ -375,15 +382,8 @@ export default function App() {
                   <div>
                     <span className="font-semibold text-blue-500">[{log.event_type}]</span> {log.details}
                   </div>
-                  <span className={isDayMode ? 'text-slate-400 font-medium text-[11px]' : 'text-gray-500 font-medium text-[11px]'}>
-                    {parseLogDate(log.created_at).toLocaleString([], {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      second: '2-digit',
-                      hour12: true
-                    })}
+                  <span className={isDayMode ? 'text-slate-400 font-medium text-[11px] whitespace-nowrap pl-2' : 'text-gray-500 font-medium text-[11px] whitespace-nowrap pl-2'}>
+                    {formatLogDateTime(log.created_at)}
                   </span>
                 </div>
               ))
