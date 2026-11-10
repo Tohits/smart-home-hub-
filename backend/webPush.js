@@ -59,14 +59,7 @@ try {
   console.error('[WebPush] VAPID configuration notice:', err.message);
 }
 
-async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png', quietHoursAllowed = false) {
-  const now = new Date();
-  const currentHour = now.getHours();
-  if (!quietHoursAllowed && (currentHour >= 23 || currentHour < 6)) {
-    console.log('[WebPush] Skipping push notification during Quiet Hours');
-    return;
-  }
-
+async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png', quietHoursAllowed = true) {
   try {
     const res = await db.query('SELECT * FROM push_subscriptions');
     const subscriptions = res.rows || [];
@@ -83,7 +76,7 @@ async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png',
 
       return webpush.sendNotification(pushSubscription, payload).catch(err => {
         console.warn(`[WebPush] Push result status: ${err.statusCode || err.message}`);
-        if (err.statusCode === 410 || err.statusCode === 404) {
+        if (err.statusCode === 410) {
           db.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
         }
       });

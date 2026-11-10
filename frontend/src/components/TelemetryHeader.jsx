@@ -31,20 +31,28 @@ export default function TelemetryHeader({ status, telemetry, isConnected, onRest
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  // Auto-detect existing Web Push subscription on mount
+  // Auto-detect & auto-resync existing Web Push subscription on mount
   useEffect(() => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.getRegistration().then((reg) => {
         if (reg) {
-          reg.pushManager.getSubscription().then((sub) => {
+          reg.pushManager.getSubscription().then(async (sub) => {
             if (sub) {
               setPushSubscribed(true);
+              // Auto re-sync subscription with backend in case server restarted
+              try {
+                const baseUrl = backendUrl || 'https://smart-home-backend-16eu.onrender.com';
+                await axios.post(`${baseUrl}/api/push/subscribe`, sub.toJSON());
+                console.log('[WebPush] Push subscription auto-synced with backend');
+              } catch (e) {
+                console.warn('[WebPush] Auto-sync notice:', e.message);
+              }
             }
           });
         }
       }).catch(() => {});
     }
-  }, []);
+  }, [backendUrl]);
 
   const handleSaveUrl = (e) => {
     e.preventDefault();

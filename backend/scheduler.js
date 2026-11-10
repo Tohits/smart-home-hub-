@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const SunCalc = require('suncalc');
 const db = require('./database');
 const mqttService = require('./mqttService');
+const webPush = require('./webPush');
 
 const LATITUDE = parseFloat(process.env.LATITUDE || '28.6139');
 const LONGITUDE = parseFloat(process.env.LONGITUDE || '77.2090');
@@ -69,7 +70,26 @@ async function checkCronAndSolarSchedules() {
         // 2. Dispatch MQTT command to NodeMCU
         mqttService.setRelayState(schedule.device_id, schedule.channel, actionStr);
 
-        // 3. Log event
+        // 3. Send Web Push Notification
+        try {
+          let rName = `Channel ${schedule.channel}`;
+          const relayRes = await db.query('SELECT name FROM relays WHERE device_id = $1 AND channel = $2', [schedule.device_id, schedule.channel]);
+          if (relayRes.rows && relayRes.rows[0] && relayRes.rows[0].name) {
+            rName = relayRes.rows[0].name;
+          }
+          const actionText = stateBool ? 'turned ON 🟢' : 'turned OFF 🔴';
+
+          webPush.sendNotificationToAll(
+            '⏰ Scheduled Automation',
+            `Automated schedule: ${rName} (Ch ${schedule.channel}) ${actionText}`,
+            '/assets/icon-192.png',
+            true
+          );
+        } catch (e) {
+          console.error('[WebPush] Schedule notification error:', e.message);
+        }
+
+        // 4. Log event
         let relayName = `Channel ${schedule.channel}`;
         try {
           const relayRes = await db.query('SELECT name FROM relays WHERE device_id = $1 AND channel = $2', [schedule.device_id, schedule.channel]);
