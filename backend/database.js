@@ -126,6 +126,16 @@ if (!dbClient) {
           }
           return { rowCount: 1 };
         }
+        if (s.includes('INSERT INTO ACTIVITY_LOGS')) {
+          inMemoryLogs.unshift({
+            id: params[0],
+            event_type: params[1],
+            details: params[2],
+            source: params[3] || 'system',
+            created_at: new Date().toISOString()
+          });
+          return { rowCount: 1 };
+        }
         return { rows: [] };
       },
       exec: async () => {}

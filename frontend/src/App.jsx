@@ -40,6 +40,28 @@ const getSavedStatus = () => {
   return localStorage.getItem('smarthome_status') || 'offline';
 };
 
+const parseLogDate = (dateVal) => {
+  if (!dateVal) return new Date();
+  if (typeof dateVal === 'number') return new Date(dateVal);
+
+  if (typeof dateVal === 'string') {
+    if (/^\d+$/.test(dateVal)) {
+      return new Date(parseInt(dateVal, 10));
+    }
+    let str = dateVal.trim();
+    if (str.includes(' ') && !str.includes('T')) {
+      str = str.replace(' ', 'T') + 'Z';
+    } else if (!str.endsWith('Z') && !str.includes('+') && !str.includes('-')) {
+      str = str + 'Z';
+    }
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  const d = new Date(dateVal);
+  return isNaN(d.getTime()) ? new Date() : d;
+};
+
 export default function App() {
   const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem('smarthome_backend_url') || RENDER_BACKEND_URL);
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('smarthome_theme_mode') || 'auto');
@@ -353,8 +375,13 @@ export default function App() {
                   <div>
                     <span className="font-semibold text-blue-500">[{log.event_type}]</span> {log.details}
                   </div>
-                  <span className={isDayMode ? 'text-slate-400' : 'text-gray-500'}>
-                    {new Date(log.created_at || Date.now()).toLocaleTimeString()}
+                  <span className={isDayMode ? 'text-slate-400 font-medium' : 'text-gray-500 font-medium'}>
+                    {parseLogDate(log.created_at).toLocaleTimeString([], {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: true
+                    })}
                   </span>
                 </div>
               ))

@@ -256,7 +256,20 @@ app.post('/api/system/ota', authenticateToken, (req, res) => {
 app.get('/api/logs', authenticateToken, async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 50');
-    res.json(result.rows || []);
+    const rows = (result.rows || []).map((row) => {
+      let createdAt = row.created_at;
+      if (typeof createdAt === 'string') {
+        let str = createdAt.trim();
+        if (str.includes(' ') && !str.includes('T')) {
+          str = str.replace(' ', 'T') + 'Z';
+        } else if (!str.endsWith('Z') && !str.includes('+') && !str.includes('-')) {
+          str = str + 'Z';
+        }
+        createdAt = str;
+      }
+      return { ...row, created_at: createdAt };
+    });
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
