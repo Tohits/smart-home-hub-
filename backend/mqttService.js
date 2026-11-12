@@ -16,6 +16,8 @@ const deviceState = {
   relays: {}
 };
 
+const offlineAlertTimers = {};
+
 function initMqtt(io) {
   ioInstance = io;
 
@@ -48,21 +50,49 @@ function initMqtt(io) {
       const subType = parts[2];
 
       if (subType === 'status') {
-        deviceState.status = message;
-        if (ioInstance) ioInstance.emit('device:status', { deviceId, status: message });
+        const prevStatus = deviceState.status;
+        const normalizedMsg = message.toLowerCase();
 
-        await db.query(
-          'INSERT INTO activity_logs (id, event_type, details, source, created_at) VALUES ($1, $2, $3, $4, $5)',
-          [Date.now().toString(), 'DEVICE_STATUS', `Device ${deviceId} is ${message.toUpperCase()}`, 'mqtt', new Date().toISOString()]
-        );
+        // Ignore duplicate identical offline messages
+        if (prevStatus === normalizedMsg && normalizedMsg === 'offline') {
+          return;
+        }
 
-        if (message === 'offline') {
-          webPush.sendNotificationToAll(
-            '⚠️ Smart Home Alert',
-            `NodeMCU device (${deviceId}) went offline!`,
-            '/assets/icon-192.png',
-            true
+        deviceState.status = normalizedMsg;
+        if (ioInstance) ioInstance.emit('device:status', { deviceId, status: normalizedMsg });
+
+        if (prevStatus !== normalizedMsg) {
+          await db.query(
+            'INSERT INTO activity_logs (id, event_type, details, source, created_at) VALUES ($1, $2, $3, $4, $5)',
+            [Date.now().toString(), 'DEVICE_STATUS', `Device ${deviceId} is ${normalizedMsg.toUpperCase()}`, 'mqtt', new Date().toISOString()]
           );
+        }
+
+        if (normalizedMsg === 'online') {
+          // Cancel any pending offline alert timer if device reconnected quickly
+          if (offlineAlertTimers[deviceId]) {
+            clearTimeout(offlineAlertTimers[deviceId]);
+            delete offlineAlertTimers[deviceId];
+            console.log(`[MQTT] Device ${deviceId} reconnected. Cancelled offline alert timer.`);
+          }
+        } else if (normalizedMsg === 'offline') {
+          if (offlineAlertTimers[deviceId]) {
+            clearTimeout(offlineAlertTimers[deviceId]);
+          }
+
+          // 15-second grace period before dispatching offline push alert
+          offlineAlertTimers[deviceId] = setTimeout(() => {
+            if (deviceState.status === 'offline') {
+              console.log(`[MQTT] Device ${deviceId} remained offline for 15s. Sending push alert...`);
+              webPush.sendNotificationToAll(
+                '⚠️ Smart Home Alert',
+                `NodeMCU device (${deviceId}) went offline!`,
+                '/assets/icon-192.png',
+                true
+              );
+            }
+            delete offlineAlertTimers[deviceId];
+          }, 15000);
         }
       } else if (subType === 'telemetry') {
         try {
