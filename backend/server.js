@@ -156,20 +156,22 @@ app.put('/api/relays/:id', authenticateToken, async (req, res) => {
   const { name, icon } = req.body;
 
   try {
-    const channelNum = parseInt(id, 10);
-    if (!isNaN(channelNum) && channelNum >= 1 && channelNum <= 4) {
-      await db.query(
-        'UPDATE relays SET name = $1, icon = $2, updated_at = CURRENT_TIMESTAMP WHERE channel = $3 OR id = $4',
-        [name, icon, channelNum, id]
-      );
-    } else {
-      await db.query(
-        'UPDATE relays SET name = $1, icon = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 OR channel = $4',
-        [name, icon, id, channelNum]
-      );
+    let channelNum = parseInt(id, 10);
+    if (isNaN(channelNum)) {
+      const match = String(id).match(/\d+$/);
+      if (match) channelNum = parseInt(match[0], 10);
     }
-    res.json({ success: true, id, name, icon });
+    if (isNaN(channelNum) || channelNum < 1 || channelNum > 4) channelNum = 1;
+
+    const relayId = `nodemcu_home_1_ch${channelNum}`;
+
+    await db.query(
+      'UPDATE relays SET name = $1, icon = $2, updated_at = CURRENT_TIMESTAMP WHERE channel = $3 OR id = $4',
+      [name, icon, channelNum, relayId]
+    );
+    res.json({ success: true, channel: channelNum, name, icon });
   } catch (err) {
+    console.error('[DB] Relay update error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

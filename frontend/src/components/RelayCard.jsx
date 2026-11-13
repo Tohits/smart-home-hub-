@@ -33,7 +33,7 @@ export default function RelayCard({ relay, onToggle, onUpdateRelay, backendUrl, 
   const handleSave = async () => {
     try {
       const baseUrl = backendUrl || '';
-      await axios.put(`${baseUrl}/api/relays/${relay.id || relay.channel}`, { name, icon: iconKey });
+      await axios.put(`${baseUrl}/api/relays/${relay.channel}`, { name, icon: iconKey });
     } catch (err) {
       console.warn('Backend icon update notice:', err);
     }

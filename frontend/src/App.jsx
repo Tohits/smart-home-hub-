@@ -215,8 +215,8 @@ export default function App() {
             const localMatch = prevRelays.find((r) => r.channel === serverRelay.channel);
             return {
               ...serverRelay,
-              name: (localMatch && localMatch.name) ? localMatch.name : serverRelay.name,
-              icon: (localMatch && localMatch.icon) ? localMatch.icon : serverRelay.icon,
+              name: serverRelay.name || (localMatch && localMatch.name ? localMatch.name : `Channel ${serverRelay.channel}`),
+              icon: serverRelay.icon || (localMatch && localMatch.icon ? localMatch.icon : 'power'),
             };
           });
         });
