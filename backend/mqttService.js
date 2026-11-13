@@ -120,7 +120,7 @@ function initMqtt(io) {
         }
 
         // Send VAPID Web Push Notification on Relay State Change
-        if (prevState !== undefined && prevState !== stateBool) {
+        if (prevState === undefined || prevState !== stateBool) {
           try {
             const relayRes = await db.query('SELECT name FROM relays WHERE device_id = $1 AND channel = $2', [deviceId, channel]);
             const relayName = (relayRes.rows && relayRes.rows[0]) ? relayRes.rows[0].name : `Relay Channel ${channel}`;

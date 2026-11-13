@@ -87,9 +87,20 @@ async function sendNotificationToAll(title, body, icon = '/assets/icon-192.png',
     console.log(`[WebPush] Dispatching notification "${title}" to ${subscriptions.length} subscribers...`);
 
     const sendPromises = subscriptions.map(sub => {
+      const p256dhKey = sub.p256dh || (sub.keys && sub.keys.p256dh);
+      const authKey = sub.auth || (sub.keys && sub.keys.auth);
+
+      if (!sub.endpoint || !p256dhKey || !authKey) {
+        console.warn('[WebPush] Skipping incomplete subscription record:', sub.endpoint);
+        return Promise.resolve();
+      }
+
       const pushSubscription = {
         endpoint: sub.endpoint,
-        keys: { p256dh: sub.p256dh, auth: sub.auth }
+        keys: {
+          p256dh: p256dhKey,
+          auth: authKey
+        }
       };
 
       return webpush.sendNotification(pushSubscription, payload).catch(err => {
